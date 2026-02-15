@@ -19,6 +19,14 @@ app.post(
 // JSON parser for other routes
 app.use(express.json());
 
+// No-cache for LIFF pages (prevent LINE in-app browser caching)
+app.use('/liff', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 // Dynamic LIFF config — exposes LIFF_ID to frontend
 app.get('/liff/env.js', (_req, res) => {
   res.type('application/javascript').send(`window.LIFF_ID="${config.liffId}";`);
