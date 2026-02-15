@@ -26,7 +26,7 @@ export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage
     }
     return {
     type: 'bubble',
-    size: 'kilo',
+    size: 'mega',
     header: {
       type: 'box',
       layout: 'vertical',
@@ -38,29 +38,81 @@ export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage
       type: 'box',
       layout: 'vertical',
       contents: [
+        // เลขทะเบียน
         {
           type: 'box',
           layout: 'horizontal',
           contents: [
-            { type: 'text', text: 'ทะเบียน', size: 'xs', color: '#999999', flex: 0 },
-            { type: 'text', text: company.registrationNumber || '-', size: 'xs', color: '#333333', align: 'end' },
+            { type: 'text', text: 'เลขทะเบียนนิติบุคคล', size: 'xs', color: '#999999', flex: 4 },
+            { type: 'text', text: company.registrationNumber || '-', size: 'xs', color: '#333333', flex: 5, align: 'end' },
           ],
         },
+        { type: 'separator', margin: 'sm' },
+        // ทุนจดทะเบียน
         {
           type: 'box',
           layout: 'horizontal',
           contents: [
-            { type: 'text', text: 'ทุน', size: 'xs', color: '#999999', flex: 0 },
-            { type: 'text', text: company.registeredCapital ? formatMoney(company.registeredCapital) : '-', size: 'xs', color: '#333333', align: 'end' },
+            { type: 'text', text: 'ทุนจดทะเบียน', size: 'xs', color: '#999999', flex: 3 },
+            { type: 'text', text: company.registeredCapital ? formatMoney(company.registeredCapital) : '-', size: 'xs', color: '#333333', flex: 5, align: 'end' },
           ],
           margin: 'sm',
         },
+        { type: 'separator', margin: 'sm' },
+        // กรรมการ — แสดงชื่อ
+        {
+          type: 'text',
+          text: `กรรมการ (${company.directors.length} คน)`,
+          size: 'xs',
+          color: '#1DB446',
+          weight: 'bold',
+          margin: 'sm',
+        },
+        ...company.directors.slice(0, 5).map(d => ({
+          type: 'text' as const,
+          text: `• ${d.name}${d.position ? ` (${d.position})` : ''}`,
+          size: 'xxs' as const,
+          color: '#555555',
+          wrap: true,
+        })),
+        ...(company.directors.length > 5 ? [{
+          type: 'text' as const,
+          text: `...และอีก ${company.directors.length - 5} คน`,
+          size: 'xxs' as const,
+          color: '#999999',
+        }] : []),
+        { type: 'separator', margin: 'sm' },
+        // ผู้ถือหุ้น — แสดงชื่อ + %
+        {
+          type: 'text',
+          text: `ผู้ถือหุ้น (${company.shareholders.length} คน)`,
+          size: 'xs',
+          color: '#1DB446',
+          weight: 'bold',
+          margin: 'sm',
+        },
+        ...company.shareholders.slice(0, 5).map(s => ({
+          type: 'box' as const,
+          layout: 'horizontal' as const,
+          contents: [
+            { type: 'text' as const, text: `• ${s.name}`, size: 'xxs' as const, color: '#555555', flex: 6, wrap: true },
+            { type: 'text' as const, text: s.percentage ? `${s.percentage}%` : `${formatNumber(s.shares)} หุ้น`, size: 'xxs' as const, color: '#17A2B8', flex: 2, align: 'end' as const },
+          ],
+        })),
+        ...(company.shareholders.length > 5 ? [{
+          type: 'text' as const,
+          text: `...และอีก ${company.shareholders.length - 5} คน`,
+          size: 'xxs' as const,
+          color: '#999999',
+        }] : []),
+        { type: 'separator', margin: 'sm' },
+        // ที่ตั้งสำนักงาน
         {
           type: 'box',
-          layout: 'horizontal',
+          layout: 'vertical',
           contents: [
-            { type: 'text', text: 'กรรมการ', size: 'xs', color: '#999999', flex: 0 },
-            { type: 'text', text: `${company.directors.length} คน`, size: 'xs', color: '#333333', align: 'end' },
+            { type: 'text', text: 'ที่ตั้งสำนักงานใหญ่', size: 'xs', color: '#999999' },
+            { type: 'text', text: truncate(company.headOfficeAddress || '-', 100), size: 'xs', color: '#333333', wrap: true, margin: 'xs' },
           ],
           margin: 'sm',
         },
