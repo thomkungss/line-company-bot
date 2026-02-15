@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet } from '@company-bot/shared';
+import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet } from '@company-bot/shared';
 import { Readable } from 'stream';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -95,14 +95,16 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     const fileId = (driveRes as any).data.id;
     const webViewLink = (driveRes as any).data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
 
-    // Auto update Google Sheet with new link + date
+    // Auto update Google Sheet
     let sheetUpdated = false;
-    if (documentName) {
+    if (documentName === 'ตราประทับ') {
+      // Seal image — update sealImageDriveId in sheet
+      sheetUpdated = await updateSealInSheet(sheet, fileId);
+    } else if (documentName) {
       const updated = await updateDocumentInSheet(sheet, documentName, webViewLink);
       if (updated) {
         sheetUpdated = true;
       } else {
-        // Document name not found in sheet — add as new row
         await addDocumentToSheet(sheet, documentName, webViewLink);
         sheetUpdated = true;
       }
@@ -116,6 +118,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       sheetUpdated,
     });
   } catch (err: any) {
+    console.error('Upload error:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });

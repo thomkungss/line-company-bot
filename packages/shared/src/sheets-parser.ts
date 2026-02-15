@@ -421,6 +421,28 @@ export async function updateCompanyField(
   return null;
 }
 
+// ===== Update seal image Drive ID in sheet =====
+
+export async function updateSealInSheet(sheetName: string, driveFileId: string): Promise<boolean> {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: getSpreadsheetId(),
+    range: `'${sheetName}'!A:B`,
+  });
+  const rows = res.data.values || [];
+  const idx = findRowIndex(rows, 'ตราประทับ');
+  if (idx < 0) return false;
+
+  const driveUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: getSpreadsheetId(),
+    range: `'${sheetName}'!B${idx + 1}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[driveUrl]] },
+  });
+  return true;
+}
+
 // ===== Update document link + date in sheet =====
 
 export async function updateDocumentInSheet(
