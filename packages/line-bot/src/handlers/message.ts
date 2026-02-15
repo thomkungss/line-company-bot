@@ -11,9 +11,11 @@ export async function handleMessage(client: Client, event: MessageEvent): Promis
   if (!userId) return;
 
   const text = event.message.text.trim();
+  console.log(`Message from userId: ${userId}, text: ${text}`);
 
   // Check permissions
   const perm = await getUserPermission(userId);
+  console.log(`Permission check for ${userId}:`, JSON.stringify(perm));
   if (!perm) {
     await client.replyMessage(event.replyToken, {
       type: 'text',

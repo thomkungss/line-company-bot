@@ -20,37 +20,49 @@ export function buildDocumentList(company: Company): FlexMessage {
     return { type: 'flex', altText: 'ไม่พบเอกสาร', contents: bubble };
   }
 
-  const docItems: any[] = docs.slice(0, 10).map((doc, i) => ({
-    type: 'box',
-    layout: 'horizontal',
-    contents: [
-      {
-        type: 'box',
-        layout: 'vertical',
-        contents: [
-          { type: 'text', text: doc.name, size: 'sm', color: '#333333', wrap: true },
-          { type: 'text', text: doc.type || 'เอกสาร', size: 'xxs', color: '#999999' },
-        ],
-        flex: 5,
-      },
-      {
-        type: 'button',
-        action: doc.driveFileId
-          ? {
-              type: 'uri',
-              label: 'ดาวน์โหลด',
-              uri: `${config.baseUrl}/api/download/${doc.driveFileId}`,
-            }
-          : doc.driveUrl
-          ? { type: 'uri', label: 'เปิด', uri: doc.driveUrl }
-          : { type: 'postback', label: '-', data: 'action=noop' },
-        style: 'link',
-        height: 'sm',
-        flex: 2,
-      },
-    ],
-    margin: i === 0 ? 'none' : 'md',
-  }));
+  const docItems: any[] = docs.slice(0, 10).flatMap((doc, i) => {
+    const infoContents: any[] = [
+      { type: 'text', text: doc.name, size: 'sm', color: '#333333', wrap: true },
+    ];
+    if (doc.updatedDate) {
+      infoContents.push({ type: 'text', text: `อัปเดต: ${doc.updatedDate}`, size: 'xxs', color: '#17A2B8' });
+    } else if (doc.type) {
+      infoContents.push({ type: 'text', text: doc.type, size: 'xxs', color: '#999999' });
+    }
+    const items: any[] = [];
+    if (i > 0) {
+      items.push({ type: 'separator', margin: 'md' });
+    }
+    items.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: infoContents,
+          flex: 5,
+        },
+        {
+          type: 'button',
+          action: doc.driveFileId
+            ? {
+                type: 'uri',
+                label: 'ดาวน์โหลด',
+                uri: `${config.baseUrl}/api/download/${doc.driveFileId}`,
+              }
+            : doc.driveUrl
+            ? { type: 'uri', label: 'เปิด', uri: doc.driveUrl }
+            : { type: 'postback', label: '-', data: 'action=noop' },
+          style: 'link',
+          height: 'sm',
+          flex: 2,
+        },
+      ],
+      margin: i === 0 ? 'none' : 'md',
+    });
+    return items;
+  });
 
   const bubble: FlexBubble = {
     type: 'bubble',

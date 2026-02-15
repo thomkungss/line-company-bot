@@ -24,6 +24,7 @@ export interface CompanyDocument {
   driveFileId: string;
   type?: string; // e.g. "หนังสือรับรอง", "บอจ.5"
   driveUrl?: string;
+  updatedDate?: string; // วัน update ล่าสุด
 }
 
 export interface Company {

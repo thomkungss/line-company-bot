@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { getDriveClient, getDriveFolderId, parseCompanySheet } from '@company-bot/shared';
+import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet } from '@company-bot/shared';
 import { Readable } from 'stream';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -18,7 +18,7 @@ documentsRouter.get('/:sheet', async (req: Request, res: Response) => {
   }
 });
 
-/** Upload document to Google Drive */
+/** Upload document to Google Drive + auto update Sheet */
 documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -29,6 +29,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     const drive = getDriveClient();
     const folderId = getDriveFolderId();
     const sheet: string = req.params.sheet as string;
+    const documentName: string = (req.body.documentName || '').toString().trim();
 
     const fileMetadata = {
       name: req.file.originalname,
@@ -47,11 +48,28 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       fields: 'id,name,webViewLink',
     });
 
+    const fileId = (driveRes as any).data.id;
+    const webViewLink = (driveRes as any).data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
+
+    // Auto update Google Sheet with new link + date
+    let sheetUpdated = false;
+    if (documentName) {
+      const updated = await updateDocumentInSheet(sheet, documentName, webViewLink);
+      if (updated) {
+        sheetUpdated = true;
+      } else {
+        // Document name not found in sheet — add as new row
+        await addDocumentToSheet(sheet, documentName, webViewLink);
+        sheetUpdated = true;
+      }
+    }
+
     res.json({
       success: true,
-      fileId: (driveRes as any).data.id,
+      fileId,
       name: (driveRes as any).data.name,
-      webViewLink: (driveRes as any).data.webViewLink,
+      webViewLink,
+      sheetUpdated,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -4,29 +4,33 @@ import { config } from '../config';
 
 /** Build a company selection carousel — shown when user types anything */
 export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage {
-  const bubbles: FlexBubble[] = companies.map(company => ({
+  const bubbles: FlexBubble[] = companies.map(company => {
+    const headerContents: any[] = [
+      {
+        type: 'text',
+        text: company.companyNameTh || company.sheetName,
+        weight: 'bold',
+        size: 'md',
+        color: '#1DB446',
+        wrap: true,
+      },
+    ];
+    if (company.companyNameEn) {
+      headerContents.push({
+        type: 'text',
+        text: company.companyNameEn,
+        size: 'xs',
+        color: '#aaaaaa',
+        wrap: true,
+      });
+    }
+    return {
     type: 'bubble',
     size: 'kilo',
     header: {
       type: 'box',
       layout: 'vertical',
-      contents: [
-        {
-          type: 'text',
-          text: company.companyNameTh || company.sheetName,
-          weight: 'bold',
-          size: 'md',
-          color: '#1DB446',
-          wrap: true,
-        },
-        {
-          type: 'text',
-          text: company.companyNameEn || '',
-          size: 'xs',
-          color: '#aaaaaa',
-          wrap: true,
-        },
-      ],
+      contents: headerContents,
       paddingAll: '15px',
       backgroundColor: '#F7F7F7',
     },
@@ -113,7 +117,8 @@ export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage
       paddingAll: '15px',
       spacing: 'sm',
     },
-  }));
+  };
+  });
 
   return {
     type: 'flex',
@@ -232,20 +237,20 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
           color: '#FFFFFF',
           wrap: true,
         },
-        {
-          type: 'text',
-          text: company.companyNameEn || '',
-          size: 'sm',
+        ...(company.companyNameEn ? [{
+          type: 'text' as const,
+          text: company.companyNameEn,
+          size: 'sm' as const,
           color: '#FFFFFFCC',
           wrap: true,
-        },
-        {
-          type: 'text',
-          text: company.dataDate || '',
-          size: 'xxs',
+        }] : []),
+        ...(company.dataDate ? [{
+          type: 'text' as const,
+          text: company.dataDate,
+          size: 'xxs' as const,
           color: '#FFFFFF99',
-          margin: 'sm',
-        },
+          margin: 'sm' as const,
+        }] : []),
       ],
       backgroundColor: '#1DB446',
       paddingAll: '20px',

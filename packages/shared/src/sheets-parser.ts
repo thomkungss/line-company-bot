@@ -206,6 +206,7 @@ function parseDocuments(rows: SheetRow[]): CompanyDocument[] {
   for (let i = startIdx + 1; i < rows.length; i++) {
     const nameCell = (rows[i][0] || rows[i][1] || '').toString().trim();
     const linkCell = (rows[i][1] || rows[i][2] || '').toString().trim();
+    const dateCell = (rows[i][2] || rows[i][3] || '').toString().trim();
 
     if (!nameCell || nameCell === '-') continue;
     // Stop at next section
@@ -213,10 +214,13 @@ function parseDocuments(rows: SheetRow[]): CompanyDocument[] {
 
     const driveFileId = extractDriveFileId(linkCell);
     if (nameCell && (driveFileId || linkCell)) {
+      // dateCell: ถ้าไม่ใช่ link และไม่ว่าง ถือว่าเป็นวันที่
+      const updatedDate = dateCell && !dateCell.startsWith('http') ? dateCell : undefined;
       docs.push({
         name: nameCell.replace(/^\d+\.?\s*/, ''),
         driveFileId,
         driveUrl: linkCell.startsWith('http') ? linkCell : undefined,
+        updatedDate,
       });
     }
   }
@@ -393,6 +397,103 @@ export async function updateCompanyField(
     }
   }
   return null;
+}
+
+// ===== Update document link + date in sheet =====
+
+export async function updateDocumentInSheet(
+  sheetName: string,
+  documentName: string,
+  newDriveUrl: string,
+): Promise<{ row: number; oldLink: string } | null> {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: getSpreadsheetId(),
+    range: `'${sheetName}'!A:C`,
+  });
+  const rows = res.data.values || [];
+
+  // Find the document section and matching row
+  const docSectionIdx = findRowIndex(rows, 'เอกสาร');
+  if (docSectionIdx < 0) return null;
+
+  for (let i = docSectionIdx + 1; i < rows.length; i++) {
+    const nameCell = (rows[i][0] || '').toString().trim();
+    // Stop at next section
+    if (nameCell.startsWith('_')) break;
+    const looksLikeHeader = ['ตราประทับ', 'วัตถุ', 'ที่ตั้ง', 'หมายเหตุ', 'ผู้ถือหุ้น', 'กรรมการ', 'อำนาจ', 'ทุน'].some(
+      h => nameCell.includes(h)
+    );
+    if (looksLikeHeader) break;
+
+    if (nameCell === documentName || nameCell.includes(documentName)) {
+      const oldLink = (rows[i][1] || '').toString();
+      const now = new Date();
+      const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
+      // Update columns B (link) and C (date) in one call
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: getSpreadsheetId(),
+        range: `'${sheetName}'!B${i + 1}:C${i + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[newDriveUrl, dateStr]] },
+      });
+      return { row: i + 1, oldLink };
+    }
+  }
+  return null;
+}
+
+// ===== Add new document row to sheet =====
+
+export async function addDocumentToSheet(
+  sheetName: string,
+  documentName: string,
+  driveUrl: string,
+): Promise<void> {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: getSpreadsheetId(),
+    range: `'${sheetName}'!A:C`,
+  });
+  const rows = res.data.values || [];
+
+  const docSectionIdx = findRowIndex(rows, 'เอกสาร');
+  const now = new Date();
+  const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
+  if (docSectionIdx < 0) {
+    // No document section yet — append at the end
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: getSpreadsheetId(),
+      range: `'${sheetName}'!A:C`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [
+        ['เอกสารที่เกี่ยวข้อง', '', ''],
+        [documentName, driveUrl, dateStr],
+      ] },
+    });
+  } else {
+    // Find last row of document section
+    let lastDocRow = docSectionIdx + 1;
+    for (let i = docSectionIdx + 1; i < rows.length; i++) {
+      const nameCell = (rows[i][0] || '').toString().trim();
+      if (!nameCell || nameCell === '-') { lastDocRow = i; continue; }
+      const looksLikeHeader = ['_', 'ตราประทับ', 'วัตถุ', 'ที่ตั้ง', 'หมายเหตุ', 'ผู้ถือหุ้น', 'กรรมการ', 'อำนาจ', 'ทุน'].some(
+        h => nameCell.startsWith(h) || nameCell.includes(h)
+      );
+      if (looksLikeHeader) break;
+      lastDocRow = i + 1;
+    }
+
+    // Insert at lastDocRow
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: getSpreadsheetId(),
+      range: `'${sheetName}'!A${lastDocRow + 1}:C${lastDocRow + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[documentName, driveUrl, dateStr]] },
+    });
+  }
 }
 
 // ===== Update permissions =====
