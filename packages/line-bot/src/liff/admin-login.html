@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — Company Secretary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    .header { background: #1DB446; color: white; padding: 20px; text-align: center; }
+    .header h1 { font-size: 1.2em; }
+    .header p { font-size: 0.85em; opacity: 0.8; margin-top: 4px; }
+    .container { padding: 20px; max-width: 480px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+    .loading .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #eee; border-top-color: #1DB446; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status { font-size: 0.95em; color: #666; margin-top: 12px; }
+    .error { color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Company Secretary</h1>
+    <p>Admin Login ด้วย LINE</p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <div class="loading">
+        <div class="spinner"></div>
+      </div>
+      <p class="status" id="status">กำลังเข้าสู่ระบบ...</p>
+    </div>
+  </div>
+
+  <script src="/liff/env.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    async function init() {
+      const statusEl = document.getElementById('status');
+      try {
+        const liffId = window.LIFF_ID || '';
+        if (!liffId) {
+          statusEl.textContent = 'LIFF ID not configured';
+          statusEl.classList.add('error');
+          return;
+        }
+
+        // Get callback URL from query param
+        const params = new URLSearchParams(window.location.search);
+        const callback = params.get('callback');
+        if (!callback) {
+          statusEl.textContent = 'Missing callback URL';
+          statusEl.classList.add('error');
+          return;
+        }
+
+        await liff.init({ liffId });
+
+        if (!liff.isLoggedIn()) {
+          // Redirect to LINE login, then come back here
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+
+        statusEl.textContent = 'กำลังตรวจสอบสิทธิ์...';
+
+        const accessToken = liff.getAccessToken();
+        if (!accessToken) {
+          statusEl.textContent = 'ไม่สามารถรับ token ได้';
+          statusEl.classList.add('error');
+          return;
+        }
+
+        // Redirect to admin-web with the access token
+        window.location.href = callback + '?token=' + encodeURIComponent(accessToken);
+      } catch (err) {
+        console.error('LIFF init error:', err);
+        statusEl.textContent = 'เกิดข้อผิดพลาด: ' + (err.message || err);
+        statusEl.classList.add('error');
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
-import { getDriveClient, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet } from '@company-bot/shared';
+import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet } from '@company-bot/shared';
 import { Readable } from 'stream';
 import { config } from '../config';
 
@@ -47,13 +47,35 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     fs.writeFileSync(filePath, req.file.buffer);
 
     // Build public URL
-    const fileUrl = `${config.baseUrl}/api/uploads/${fileName}`;
+    let fileUrl = `${config.baseUrl}/api/uploads/${fileName}`;
 
     // Update Google Sheet
     let sheetUpdated = false;
     if (documentName === 'ตราประทับ') {
-      // Seal — store full URL in sheet
-      sheetUpdated = await updateSealInSheet(sheet, fileUrl);
+      // Seal — upload to Google Drive for persistent storage
+      const drive = getDriveClient();
+      const driveRes = await drive.files.create({
+        requestBody: {
+          name: `seal-${sheet}-${uuid}${ext}`,
+          parents: [getDriveFolderId()],
+        },
+        media: {
+          mimeType: req.file.mimetype || 'image/png',
+          body: Readable.from(req.file.buffer),
+        },
+        fields: 'id',
+      });
+      const driveFileId = (driveRes as any).data?.id;
+      if (!driveFileId) throw new Error('Drive upload failed — no file ID returned');
+      // Make file publicly readable so LINE proxy can access it
+      await drive.permissions.create({
+        fileId: driveFileId,
+        requestBody: { role: 'reader', type: 'anyone' },
+      });
+      sheetUpdated = await updateSealInSheet(sheet, driveFileId);
+      // Clean up local file — seal is on Drive now
+      fs.unlinkSync(filePath);
+      fileUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
     } else if (documentName) {
       const updated = await updateDocumentInSheet(sheet, documentName, fileUrl);
       if (updated) {

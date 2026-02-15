@@ -194,11 +194,9 @@ export function buildCompanySelectionCarousel(companies: Company[], opts: CardOp
 
 /** Build detailed company Flex Message */
 export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {}): FlexMessage {
-  const sealUrl = company.sealImageUrl
-    ? company.sealImageUrl
-    : company.sealImageDriveId
-      ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
-      : undefined;
+  const sealUrl = company.sealImageDriveId
+    ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
+    : company.sealImageUrl || undefined;
 
   const bodyContents: any[] = [
     // Registration number
@@ -306,21 +304,23 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
           size: 'xl',
           color: '#FFFFFF',
           wrap: true,
+          maxLines: 2,
         },
-        ...(company.companyNameEn ? [{
-          type: 'text' as const,
-          text: company.companyNameEn,
-          size: 'sm' as const,
+        {
+          type: 'text',
+          text: company.companyNameEn || ' ',
+          size: 'sm',
           color: '#FFFFFFCC',
           wrap: true,
-        }] : []),
-        ...(company.dataDate ? [{
-          type: 'text' as const,
-          text: company.dataDate,
-          size: 'xxs' as const,
+          maxLines: 1,
+        },
+        {
+          type: 'text',
+          text: company.dataDate || ' ',
+          size: 'xxs',
           color: '#FFFFFF99',
-          margin: 'sm' as const,
-        }] : []),
+          margin: 'sm',
+        },
       ],
       backgroundColor: '#1DB446',
       paddingAll: '20px',
@@ -364,15 +364,42 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
     },
   };
 
-  // Add seal image if available
+  // Always include hero with fixed height for consistent card layout in carousel
+  const heroHeight = '160px';
   if (sealUrl) {
-    bubble.hero = {
-      type: 'image',
-      url: sealUrl,
-      size: 'full',
-      aspectRatio: '2:1',
-      aspectMode: 'fit',
+    (bubble as any).hero = {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'image',
+          url: sealUrl,
+          size: 'full',
+          aspectRatio: '20:13',
+          aspectMode: 'fit',
+        },
+      ],
+      height: heroHeight,
       backgroundColor: '#FFFFFF',
+    };
+  } else {
+    (bubble as any).hero = {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'filler' },
+        {
+          type: 'text',
+          text: (company.companyNameTh || company.sheetName).charAt(0),
+          size: '4xl',
+          weight: 'bold',
+          color: '#1DB446',
+          align: 'center',
+        },
+        { type: 'filler' },
+      ],
+      height: heroHeight,
+      backgroundColor: '#F0F8F0',
     };
   }
 

@@ -161,6 +161,32 @@ companiesRouter.post('/bulk', async (req: Request, res: Response) => {
   }
 });
 
+/** Get all unique director + shareholder names across all companies */
+companiesRouter.get('/all-people', async (_req: Request, res: Response) => {
+  try {
+    const names = await listCompanySheets();
+    const directorNames = new Set<string>();
+    const shareholderNames = new Set<string>();
+
+    await Promise.all(
+      names.map(async (name) => {
+        try {
+          const c = await parseCompanySheet(name);
+          c.directors.forEach(d => { if (d.name) directorNames.add(d.name); });
+          c.shareholders.forEach(s => { if (s.name) shareholderNames.add(s.name); });
+        } catch {}
+      })
+    );
+
+    res.json({
+      directors: [...directorNames].sort(),
+      shareholders: [...shareholderNames].sort(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /** Get full company data by sheet name */
 companiesRouter.get('/:sheet', async (req: Request, res: Response) => {
   try {
