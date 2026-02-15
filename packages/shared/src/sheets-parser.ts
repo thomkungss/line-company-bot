@@ -1,4 +1,4 @@
-import { getSheetsClient, getSpreadsheetId } from './google-auth';
+import { getSheetsClient, getSpreadsheetId, getDriveClient, getDriveFolderId } from './google-auth';
 import {
   Company, Director, Shareholder, CompanyDocument,
   ShareBreakdown, UserPermission, VersionEntry, ChatLogEntry,
@@ -560,4 +560,288 @@ export async function getAllChatLogs(limit = 100): Promise<ChatLogEntry[]> {
   } catch {
     return [];
   }
+}
+
+// ===== Create New Company Sheet =====
+
+export async function createCompanySheet(sheetName: string): Promise<{ driveFolderId?: string }> {
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  // 1. Add new tab
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{ addSheet: { properties: { title: sheetName } } }],
+    },
+  });
+
+  // 2. Write template rows
+  const now = new Date();
+  const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+  const templateRows = [
+    ['ข้อมูล ณ วันที่', dateStr],
+    ['ชื่อบริษัท', ''],
+    ['Company Name', ''],
+    ['เลขทะเบียนนิติบุคคล', ''],
+    [''],
+    ['กรรมการ', '0 คน'],
+    [''],
+    ['อำนาจกรรมการ', ''],
+    [''],
+    ['ทุนจดทะเบียน', ''],
+    [''],
+    ['ที่ตั้งสำนักงานใหญ่', ''],
+    ['วัตถุประสงค์', ''],
+    ['ตราประทับ', ''],
+    [''],
+    ['ผู้ถือหุ้น', '0 คน'],
+    ['ลำดับ', 'ชื่อผู้ถือหุ้น', '%', '', 'จำนวนหุ้น'],
+    [''],
+    [''],
+    ['เอกสารที่เกี่ยวข้อง'],
+    ['ชื่อเอกสาร', 'ลิงก์', 'วันที่อัปเดต'],
+  ];
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName}'!A1`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: templateRows },
+  });
+
+  // 3. Create Drive subfolder for this company
+  let driveFolderId: string | undefined;
+  try {
+    const drive = getDriveClient();
+    const parentFolderId = getDriveFolderId();
+    if (parentFolderId) {
+      const folderRes = await drive.files.create({
+        requestBody: {
+          name: sheetName,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parentFolderId],
+        },
+        fields: 'id',
+      });
+      driveFolderId = (folderRes as any).data.id;
+    }
+  } catch {
+    // Drive folder creation is optional
+  }
+
+  return { driveFolderId };
+}
+
+// ===== Delete Company Sheet =====
+
+export async function deleteCompanySheet(sheetName: string): Promise<void> {
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  // Get sheet ID from title
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties',
+  });
+  const sheetMeta = (meta.data.sheets || []).find(
+    s => s.properties?.title === sheetName
+  );
+  if (!sheetMeta?.properties?.sheetId && sheetMeta?.properties?.sheetId !== 0) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{ deleteSheet: { sheetId: sheetMeta.properties!.sheetId! } }],
+    },
+  });
+}
+
+// ===== Update Directors Section =====
+
+export async function updateDirectors(sheetName: string, directors: Director[]): Promise<void> {
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  // Get all current data
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${sheetName}'!A:Z`,
+  });
+  const rows: SheetRow[] = res.data.values || [];
+
+  // Find the "กรรมการ" label row
+  const directorLabelIdx = findRowIndex(rows, 'กรรมการ');
+  if (directorLabelIdx < 0) throw new Error('Director section not found');
+
+  // Find the end of director section (next labeled section like "อำนาจกรรมการ")
+  let endIdx = directorLabelIdx + 1;
+  for (let i = directorLabelIdx + 1; i < rows.length; i++) {
+    const cell = (rows[i][0] || '').toString().trim();
+    if (cell && !cell.match(/^\d+\.?$/) && cell !== '-') {
+      endIdx = i;
+      break;
+    }
+    endIdx = i + 1;
+  }
+
+  // Get the sheet's numeric ID for row manipulation
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties',
+  });
+  const sheetMeta = (meta.data.sheets || []).find(
+    s => s.properties?.title === sheetName
+  );
+  const sheetId = sheetMeta?.properties?.sheetId ?? 0;
+
+  // Build requests: delete old director rows, insert new ones
+  const requests: any[] = [];
+
+  // Delete existing director data rows (between label and next section)
+  const deleteFrom = directorLabelIdx + 1;
+  const deleteTo = endIdx;
+  if (deleteTo > deleteFrom) {
+    requests.push({
+      deleteDimension: {
+        range: { sheetId, dimension: 'ROWS', startIndex: deleteFrom, endIndex: deleteTo },
+      },
+    });
+  }
+
+  // Insert new rows for directors
+  if (directors.length > 0) {
+    requests.push({
+      insertDimension: {
+        range: { sheetId, dimension: 'ROWS', startIndex: deleteFrom, endIndex: deleteFrom + directors.length },
+        inheritFromBefore: true,
+      },
+    });
+  }
+
+  if (requests.length > 0) {
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  }
+
+  // Write director data
+  if (directors.length > 0) {
+    const directorRows = directors.map((d, i) => [
+      `${i + 1}.`,
+      d.name,
+      d.position || '',
+    ]);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${sheetName}'!A${deleteFrom + 1}:C${deleteFrom + directors.length}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: directorRows },
+    });
+  }
+
+  // Update count on the label row
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName}'!B${directorLabelIdx + 1}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[`${directors.length} คน`]] },
+  });
+}
+
+// ===== Update Shareholders Section =====
+
+export async function updateShareholders(sheetName: string, shareholders: Shareholder[]): Promise<void> {
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  // Get all current data
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${sheetName}'!A:Z`,
+  });
+  const rows: SheetRow[] = res.data.values || [];
+
+  // Find the "ผู้ถือหุ้น" label row
+  const shLabelIdx = findRowIndex(rows, 'ผู้ถือหุ้น');
+  if (shLabelIdx < 0) throw new Error('Shareholder section not found');
+
+  // Find the header row "ลำดับ" if it exists (skip it)
+  let dataStartIdx = shLabelIdx + 1;
+  if (dataStartIdx < rows.length) {
+    const nextCell = (rows[dataStartIdx][0] || '').toString().trim();
+    if (nextCell.includes('ลำดับ')) dataStartIdx++;
+  }
+
+  // Find the end of shareholder section (next major section like "เอกสาร")
+  let endIdx = dataStartIdx;
+  for (let i = dataStartIdx; i < rows.length; i++) {
+    const cell = (rows[i][0] || '').toString().trim();
+    if (cell && !cell.match(/^\d+\.?$/) && cell !== '-' && cell.length > 2) {
+      const looksLikeHeader = ['เอกสาร', 'ตราประทับ', 'วัตถุ', 'ที่ตั้ง', 'หมายเหตุ'].some(
+        h => cell.includes(h)
+      );
+      if (looksLikeHeader) { endIdx = i; break; }
+    }
+    endIdx = i + 1;
+  }
+
+  // Get sheet ID
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties',
+  });
+  const sheetMeta = (meta.data.sheets || []).find(
+    s => s.properties?.title === sheetName
+  );
+  const sheetId = sheetMeta?.properties?.sheetId ?? 0;
+
+  // Delete old shareholder data rows
+  const requests: any[] = [];
+  if (endIdx > dataStartIdx) {
+    requests.push({
+      deleteDimension: {
+        range: { sheetId, dimension: 'ROWS', startIndex: dataStartIdx, endIndex: endIdx },
+      },
+    });
+  }
+
+  // Insert new rows
+  if (shareholders.length > 0) {
+    requests.push({
+      insertDimension: {
+        range: { sheetId, dimension: 'ROWS', startIndex: dataStartIdx, endIndex: dataStartIdx + shareholders.length },
+        inheritFromBefore: true,
+      },
+    });
+  }
+
+  if (requests.length > 0) {
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  }
+
+  // Write shareholder data
+  if (shareholders.length > 0) {
+    const shRows = shareholders.map((s, i) => [
+      `${i + 1}`,
+      s.name,
+      s.percentage ? `${s.percentage}%` : '',
+      '',
+      String(s.shares || ''),
+    ]);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${sheetName}'!A${dataStartIdx + 1}:E${dataStartIdx + shareholders.length}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: shRows },
+    });
+  }
+
+  // Update count on the label row
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName}'!B${shLabelIdx + 1}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[`${shareholders.length} คน`]] },
+  });
 }

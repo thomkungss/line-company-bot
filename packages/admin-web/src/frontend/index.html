@@ -33,6 +33,8 @@
     /* Table */
     .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px; }
     .card h3 { color: #333; margin-bottom: 16px; font-size: 1.1em; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .card-header h3 { margin-bottom: 0; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
     th { background: #f8f9fa; padding: 10px 12px; text-align: left; color: #666; font-weight: 600; border-bottom: 2px solid #eee; }
     td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
@@ -53,6 +55,10 @@
     .form-group label { display: block; font-size: 0.85em; color: #666; margin-bottom: 4px; }
     .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9em; outline: none; }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1DB446; }
+
+    /* Inline form grid */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid .form-group.full { grid-column: 1 / -1; }
 
     /* Modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
@@ -95,6 +101,23 @@
     .chat-bubble.user { background: #1DB446; color: white; margin-left: auto; }
     .chat-bubble.assistant { background: #e9ecef; color: #333; }
     .chat-meta { font-size: 0.75em; color: #999; margin-bottom: 2px; }
+
+    /* Company card clickable */
+    .company-card { cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; }
+    .company-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+    /* Seal image */
+    .seal-preview { max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; }
+
+    /* Dynamic table controls */
+    .dynamic-table input { padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em; width: 100%; }
+    .dynamic-table input:focus { border-color: #1DB446; outline: none; }
+
+    /* Upload row */
+    .doc-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .doc-row:last-child { border-bottom: none; }
+    .doc-name { flex: 1; font-size: 0.9em; }
+    .doc-date { font-size: 0.8em; color: #999; min-width: 100px; }
   </style>
 </head>
 <body>
@@ -139,7 +162,12 @@
 
     <!-- Companies -->
     <div id="page-companies" class="page">
-      <div class="topbar"><h1>บริษัท</h1></div>
+      <div class="topbar">
+        <h1>บริษัท</h1>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="openCreateCompanyModal()">+ เพิ่มบริษัทใหม่</button>
+        </div>
+      </div>
       <div id="companyList"></div>
       <div id="companyDetail" style="display:none;"></div>
     </div>
@@ -166,7 +194,25 @@
     </div>
   </div>
 
-  <!-- Edit Modal -->
+  <!-- Create Company Modal -->
+  <div class="modal-overlay" id="createCompanyModal">
+    <div class="modal">
+      <h3>เพิ่มบริษัทใหม่</h3>
+      <form id="createCompanyForm">
+        <div class="form-group">
+          <label>ชื่อ Sheet (ชื่อบริษัท)</label>
+          <input type="text" id="newCompanyName" placeholder="เช่น บริษัท ABC จำกัด" required>
+        </div>
+        <p style="font-size:0.8em;color:#999;margin-bottom:14px;">ชื่อนี้จะเป็นชื่อ Tab ใน Google Sheet และชื่อ Folder ใน Google Drive</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">สร้างบริษัท</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Field Modal -->
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <h3 id="editModalTitle">แก้ไขข้อมูล</h3>
@@ -176,10 +222,23 @@
           <textarea id="editFieldValue" rows="3"></textarea>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal()">ยกเลิก</button>
+          <button type="button" class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
           <button type="submit" class="btn btn-primary">บันทึก</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div class="modal-overlay" id="deleteCompanyModal">
+    <div class="modal">
+      <h3>ยืนยันการลบบริษัท</h3>
+      <p style="margin-bottom:16px;">คุณต้องการลบบริษัท <strong id="deleteCompanyName"></strong> หรือไม่?</p>
+      <p style="color:#e74c3c;font-size:0.85em;margin-bottom:16px;">การลบจะลบ Sheet ออกจาก Google Spreadsheet (ไม่สามารถกู้คืนได้)</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
+        <button class="btn btn-danger" id="confirmDeleteBtn">ลบบริษัท</button>
+      </div>
     </div>
   </div>
 
@@ -225,6 +284,16 @@
 
     function fmt(n) { return n ? n.toLocaleString('th-TH') : '-'; }
 
+    function closeAllModals() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'));
+    }
+
+    function escHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
     // ===== Dashboard =====
     let companiesData = [];
 
@@ -237,9 +306,9 @@
 
       document.getElementById('dashTable').innerHTML = companiesData.map(c => `
         <tr>
-          <td><strong>${c.companyNameTh || c.sheetName}</strong></td>
-          <td>${c.companyNameEn || '-'}</td>
-          <td>${c.registrationNumber || '-'}</td>
+          <td><strong>${escHtml(c.companyNameTh || c.sheetName)}</strong></td>
+          <td>${escHtml(c.companyNameEn || '-')}</td>
+          <td>${escHtml(c.registrationNumber || '-')}</td>
           <td>${fmt(c.registeredCapital)}</td>
           <td>${c.directorCount || 0}</td>
           <td>${c.shareholderCount || 0}</td>
@@ -256,18 +325,49 @@
       }
     }
 
-    // ===== Companies =====
+    // ===== Create Company =====
+    function openCreateCompanyModal() {
+      document.getElementById('newCompanyName').value = '';
+      document.getElementById('createCompanyModal').classList.add('show');
+    }
+
+    document.getElementById('createCompanyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('newCompanyName').value.trim();
+      if (!name) return;
+
+      toast('กำลังสร้างบริษัท...');
+      const res = await api('/companies', {
+        method: 'POST',
+        body: JSON.stringify({ sheetName: name }),
+      });
+
+      if (res?.success) {
+        toast('สร้างบริษัทสำเร็จ');
+        closeAllModals();
+        companiesData = [];
+        loadCompanies();
+      } else {
+        toast(res?.error || 'เกิดข้อผิดพลาด');
+      }
+    });
+
+    // ===== Companies List =====
     async function loadCompanies() {
       if (!companiesData.length) companiesData = await api('/companies') || [];
       const el = document.getElementById('companyList');
+      el.style.display = 'block';
       el.innerHTML = companiesData.map(c => `
-        <div class="card" style="cursor:pointer;" onclick="loadCompanyDetail('${c.sheetName}')">
+        <div class="card company-card" onclick="loadCompanyDetail('${escHtml(c.sheetName)}')">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <strong>${c.companyNameTh || c.sheetName}</strong>
-              <span style="color:#999;font-size:0.85em;margin-left:8px;">${c.companyNameEn || ''}</span>
+              <strong>${escHtml(c.companyNameTh || c.sheetName)}</strong>
+              <span style="color:#999;font-size:0.85em;margin-left:8px;">${escHtml(c.companyNameEn || '')}</span>
             </div>
-            <span class="badge badge-green">${c.registrationNumber || '-'}</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="badge badge-green">${escHtml(c.registrationNumber || '-')}</span>
+              <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany('${escHtml(c.sheetName)}')">ลบ</button>
+            </div>
           </div>
           <div style="margin-top:8px;font-size:0.85em;color:#666;">
             ทุน: ${fmt(c.registeredCapital)} | กรรมการ: ${c.directorCount || 0} คน | ผู้ถือหุ้น: ${c.shareholderCount || 0} คน | เอกสาร: ${c.documentCount || 0}
@@ -277,87 +377,388 @@
       document.getElementById('companyDetail').style.display = 'none';
     }
 
+    // ===== Delete Company =====
+    let deleteTarget = '';
+    function openDeleteCompany(sheet) {
+      deleteTarget = sheet;
+      document.getElementById('deleteCompanyName').textContent = sheet;
+      document.getElementById('deleteCompanyModal').classList.add('show');
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+      if (!deleteTarget) return;
+      toast('กำลังลบบริษัท...');
+      const res = await api('/companies/' + encodeURIComponent(deleteTarget), { method: 'DELETE' });
+      if (res?.success) {
+        toast('ลบบริษัทสำเร็จ');
+        closeAllModals();
+        companiesData = [];
+        loadCompanies();
+      } else {
+        toast(res?.error || 'เกิดข้อผิดพลาด');
+      }
+    });
+
+    // ===== Company Detail =====
+    let currentCompany = null;
+
     async function loadCompanyDetail(sheet) {
       const c = await api('/companies/' + encodeURIComponent(sheet));
       if (!c) return;
+      currentCompany = c;
+
       document.getElementById('companyList').style.display = 'none';
       const el = document.getElementById('companyDetail');
       el.style.display = 'block';
 
-      const fields = [
-        ['ชื่อบริษัท', c.companyNameTh],
-        ['Company Name', c.companyNameEn],
-        ['เลขทะเบียนนิติบุคคล', c.registrationNumber],
-        ['อำนาจกรรมการ', c.authorizedSignatory],
-        ['ทุนจดทะเบียน', c.capitalText || String(c.registeredCapital)],
-        ['ที่ตั้งสำนักงานใหญ่', c.headOfficeAddress],
-        ['วัตถุประสงค์', c.objectives],
-      ];
-
       el.innerHTML = `
-        <button class="btn btn-secondary" onclick="document.getElementById('companyList').style.display='block';document.getElementById('companyDetail').style.display='none';" style="margin-bottom:16px;">&larr; กลับ</button>
-        <div class="card">
-          <h3>${c.companyNameTh} <span style="color:#999;font-weight:normal;font-size:0.8em;">${c.companyNameEn || ''}</span></h3>
-          <p style="color:#999;font-size:0.85em;margin-bottom:16px;">${c.dataDate || ''}</p>
-          <table>
-            <thead><tr><th>รายการ</th><th>ข้อมูล</th><th></th></tr></thead>
-            <tbody>
-              ${fields.map(([label, value]) => `
-                <tr>
-                  <td style="width:180px;color:#666;">${label}</td>
-                  <td>${value || '-'}</td>
-                  <td><button class="btn btn-sm btn-secondary" onclick="openEdit('${sheet}','${label}','${(value||'').replace(/'/g, "\\'")}')">แก้ไข</button></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+        <button class="btn btn-secondary" onclick="backToList()" style="margin-bottom:16px;">&larr; กลับ</button>
 
+        <!-- General Info Section -->
         <div class="card">
-          <h3>กรรมการ (${c.directors?.length || 0} คน)</h3>
-          <table>
-            <thead><tr><th>#</th><th>ชื่อ</th><th>ตำแหน่ง</th></tr></thead>
-            <tbody>
-              ${(c.directors || []).map((d, i) => `<tr><td>${i+1}</td><td>${d.name}</td><td>${d.position || '-'}</td></tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="card">
-          <h3>ผู้ถือหุ้น (${c.shareholders?.length || 0} คน)</h3>
-          <table>
-            <thead><tr><th>#</th><th>ชื่อ</th><th>หุ้น</th><th>%</th></tr></thead>
-            <tbody>
-              ${(c.shareholders || []).map(s => `<tr><td>${s.order}</td><td>${s.name}</td><td>${fmt(s.shares)}</td><td>${s.percentage || '-'}%</td></tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="card">
-          <h3>เอกสาร (${c.documents?.length || 0} รายการ)</h3>
-          <div style="margin-bottom:12px;">
-            <input type="file" id="uploadFile" style="font-size:0.85em;">
-            <button class="btn btn-sm btn-primary" onclick="uploadDoc('${sheet}')">อัปโหลด</button>
+          <div class="card-header">
+            <h3>ข้อมูลทั่วไป</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveGeneralInfo('${escHtml(sheet)}')">บันทึกข้อมูลทั่วไป</button>
           </div>
-          <table>
-            <thead><tr><th>ชื่อเอกสาร</th><th>Actions</th></tr></thead>
-            <tbody>
-              ${(c.documents || []).map(d => `
-                <tr>
-                  <td>${d.name}</td>
-                  <td>
-                    ${d.driveFileId ? `<a href="/api/documents/download/${d.driveFileId}" class="btn btn-sm btn-secondary" target="_blank">ดาวน์โหลด</a>` : ''}
-                    ${d.driveFileId ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${d.driveFileId}','${sheet}')">ลบ</button>` : ''}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
+          <p style="color:#999;font-size:0.85em;margin-bottom:16px;">ข้อมูล ณ วันที่: ${escHtml(c.dataDate || '-')}</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>ชื่อบริษัท (ภาษาไทย)</label>
+              <input type="text" id="field-companyNameTh" value="${escHtml(c.companyNameTh || '')}">
+            </div>
+            <div class="form-group">
+              <label>ชื่อบริษัท (English)</label>
+              <input type="text" id="field-companyNameEn" value="${escHtml(c.companyNameEn || '')}">
+            </div>
+            <div class="form-group">
+              <label>เลขทะเบียนนิติบุคคล</label>
+              <input type="text" id="field-registrationNumber" value="${escHtml(c.registrationNumber || '')}">
+            </div>
+            <div class="form-group">
+              <label>ทุนจดทะเบียน</label>
+              <input type="text" id="field-capitalText" value="${escHtml(c.capitalText || String(c.registeredCapital || ''))}">
+            </div>
+            <div class="form-group">
+              <label>อำนาจกรรมการ</label>
+              <input type="text" id="field-authorizedSignatory" value="${escHtml(c.authorizedSignatory || '')}">
+            </div>
+            <div class="form-group full">
+              <label>ที่ตั้งสำนักงานใหญ่</label>
+              <textarea id="field-headOfficeAddress" rows="2">${escHtml(c.headOfficeAddress || '')}</textarea>
+            </div>
+            <div class="form-group full">
+              <label>วัตถุประสงค์</label>
+              <textarea id="field-objectives" rows="2">${escHtml(c.objectives || '')}</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seal Section -->
+        <div class="card">
+          <div class="card-header">
+            <h3>ตราประทับ</h3>
+          </div>
+          <div id="sealSection">
+            ${c.sealImageDriveId
+              ? `<img src="/api/documents/download/${escHtml(c.sealImageDriveId)}" class="seal-preview" onerror="this.style.display='none'">`
+              : '<p style="color:#999;font-size:0.85em;">ยังไม่มีตราประทับ</p>'}
+            <div style="margin-top:8px;">
+              <input type="file" id="sealUploadFile" accept="image/*" style="font-size:0.85em;">
+              <button class="btn btn-sm btn-primary" onclick="uploadSeal('${escHtml(sheet)}')">อัปโหลดตราประทับ</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Directors Section -->
+        <div class="card">
+          <div class="card-header">
+            <h3>กรรมการ (<span id="directorCount">${(c.directors || []).length}</span> คน)</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm btn-secondary" onclick="addDirectorRow()">+ เพิ่มกรรมการ</button>
+              <button class="btn btn-sm btn-primary" onclick="saveDirectors('${escHtml(sheet)}')">บันทึกกรรมการ</button>
+            </div>
+          </div>
+          <table class="dynamic-table" id="directorsTable">
+            <thead><tr><th style="width:50px;">#</th><th>ชื่อ</th><th>ตำแหน่ง</th><th style="width:60px;"></th></tr></thead>
+            <tbody id="directorsBody"></tbody>
           </table>
+        </div>
+
+        <!-- Shareholders Section -->
+        <div class="card">
+          <div class="card-header">
+            <h3>ผู้ถือหุ้น (<span id="shareholderCount">${(c.shareholders || []).length}</span> คน)</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm btn-secondary" onclick="addShareholderRow()">+ เพิ่มผู้ถือหุ้น</button>
+              <button class="btn btn-sm btn-primary" onclick="saveShareholders('${escHtml(sheet)}')">บันทึกผู้ถือหุ้น</button>
+            </div>
+          </div>
+          <table class="dynamic-table" id="shareholdersTable">
+            <thead><tr><th style="width:50px;">#</th><th>ชื่อ</th><th style="width:120px;">จำนวนหุ้น</th><th style="width:80px;">%</th><th style="width:60px;"></th></tr></thead>
+            <tbody id="shareholdersBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Documents Section -->
+        <div class="card">
+          <div class="card-header">
+            <h3>เอกสาร (<span id="documentCount">${(c.documents || []).length}</span> รายการ)</h3>
+          </div>
+          <div id="documentsSection">
+            ${(c.documents || []).map(d => `
+              <div class="doc-row">
+                <div class="doc-name">${escHtml(d.name)}</div>
+                <div class="doc-date">${escHtml(d.updatedDate || '-')}</div>
+                ${d.driveFileId ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="btn btn-sm btn-secondary" target="_blank">ดาวน์โหลด</a>` : ''}
+                <label class="btn btn-sm btn-secondary" style="position:relative;overflow:hidden;">
+                  อัปโหลดใหม่
+                  <input type="file" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
+                </label>
+                ${d.driveFileId ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}')">ลบ</button>` : ''}
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee;">
+            <h4 style="font-size:0.9em;color:#666;margin-bottom:8px;">เพิ่มเอกสารใหม่</h4>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="newDocName" placeholder="ชื่อเอกสาร" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;">
+              <input type="file" id="newDocFile" style="font-size:0.85em;">
+              <button class="btn btn-sm btn-primary" onclick="uploadNewDoc('${escHtml(sheet)}')">อัปโหลด</button>
+            </div>
+          </div>
         </div>
       `;
+
+      // Populate directors table
+      renderDirectorsTable(c.directors || []);
+      renderShareholdersTable(c.shareholders || []);
     }
 
-    // ===== Edit field =====
+    function backToList() {
+      document.getElementById('companyList').style.display = 'block';
+      document.getElementById('companyDetail').style.display = 'none';
+    }
+
+    // ===== Save General Info (all fields at once) =====
+    async function saveGeneralInfo(sheet) {
+      const fields = [
+        { label: 'ชื่อบริษัท', id: 'field-companyNameTh' },
+        { label: 'Company Name', id: 'field-companyNameEn' },
+        { label: 'เลขทะเบียนนิติบุคคล', id: 'field-registrationNumber' },
+        { label: 'ทุนจดทะเบียน', id: 'field-capitalText' },
+        { label: 'อำนาจกรรมการ', id: 'field-authorizedSignatory' },
+        { label: 'ที่ตั้งสำนักงานใหญ่', id: 'field-headOfficeAddress' },
+        { label: 'วัตถุประสงค์', id: 'field-objectives' },
+      ];
+
+      let saved = 0;
+      let errors = 0;
+      for (const f of fields) {
+        const el = document.getElementById(f.id);
+        if (!el) continue;
+        const value = el.value;
+        try {
+          const res = await api('/companies/' + encodeURIComponent(sheet), {
+            method: 'PUT',
+            body: JSON.stringify({ label: f.label, value }),
+          });
+          if (res?.success) saved++;
+          else errors++;
+        } catch {
+          errors++;
+        }
+      }
+
+      if (errors === 0) toast(`บันทึกสำเร็จ (${saved} fields)`);
+      else toast(`บันทึก ${saved} สำเร็จ, ${errors} ผิดพลาด`);
+    }
+
+    // ===== Seal Upload =====
+    async function uploadSeal(sheet) {
+      const input = document.getElementById('sealUploadFile');
+      if (!input.files.length) { toast('เลือกไฟล์ก่อน'); return; }
+      const form = new FormData();
+      form.append('file', input.files[0]);
+      form.append('documentName', 'ตราประทับ');
+      toast('กำลังอัปโหลด...');
+      const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success) {
+        toast('อัปโหลดตราประทับสำเร็จ');
+        loadCompanyDetail(sheet);
+      } else {
+        toast('เกิดข้อผิดพลาด');
+      }
+    }
+
+    // ===== Directors Table =====
+    let directorsData = [];
+
+    function renderDirectorsTable(directors) {
+      directorsData = directors.map(d => ({ ...d }));
+      updateDirectorsBody();
+    }
+
+    function updateDirectorsBody() {
+      const tbody = document.getElementById('directorsBody');
+      if (!tbody) return;
+      tbody.innerHTML = directorsData.map((d, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><input type="text" value="${escHtml(d.name)}" onchange="directorsData[${i}].name=this.value"></td>
+          <td><input type="text" value="${escHtml(d.position || '')}" onchange="directorsData[${i}].position=this.value"></td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeDirectorRow(${i})">ลบ</button></td>
+        </tr>
+      `).join('');
+      const countEl = document.getElementById('directorCount');
+      if (countEl) countEl.textContent = directorsData.length;
+    }
+
+    function addDirectorRow() {
+      directorsData.push({ name: '', position: '' });
+      updateDirectorsBody();
+      // Focus the new name input
+      const tbody = document.getElementById('directorsBody');
+      const lastRow = tbody?.lastElementChild;
+      if (lastRow) lastRow.querySelector('input')?.focus();
+    }
+
+    function removeDirectorRow(idx) {
+      directorsData.splice(idx, 1);
+      updateDirectorsBody();
+    }
+
+    async function saveDirectors(sheet) {
+      // Read current values from inputs
+      const rows = document.querySelectorAll('#directorsBody tr');
+      const directors = [];
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const name = inputs[0]?.value?.trim();
+        const position = inputs[1]?.value?.trim();
+        if (name) directors.push({ name, position: position || undefined });
+      });
+
+      toast('กำลังบันทึกกรรมการ...');
+      const res = await api('/companies/' + encodeURIComponent(sheet) + '/directors', {
+        method: 'PUT',
+        body: JSON.stringify({ directors }),
+      });
+      if (res?.success) {
+        toast(`บันทึกกรรมการสำเร็จ (${res.count} คน)`);
+        loadCompanyDetail(sheet);
+      } else {
+        toast(res?.error || 'เกิดข้อผิดพลาด');
+      }
+    }
+
+    // ===== Shareholders Table =====
+    let shareholdersData = [];
+
+    function renderShareholdersTable(shareholders) {
+      shareholdersData = shareholders.map(s => ({ ...s }));
+      updateShareholdersBody();
+    }
+
+    function updateShareholdersBody() {
+      const tbody = document.getElementById('shareholdersBody');
+      if (!tbody) return;
+      tbody.innerHTML = shareholdersData.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><input type="text" value="${escHtml(s.name)}" onchange="shareholdersData[${i}].name=this.value"></td>
+          <td><input type="number" value="${s.shares || ''}" onchange="shareholdersData[${i}].shares=Number(this.value)"></td>
+          <td><input type="number" step="0.01" value="${s.percentage || ''}" onchange="shareholdersData[${i}].percentage=Number(this.value)"></td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeShareholderRow(${i})">ลบ</button></td>
+        </tr>
+      `).join('');
+      const countEl = document.getElementById('shareholderCount');
+      if (countEl) countEl.textContent = shareholdersData.length;
+    }
+
+    function addShareholderRow() {
+      shareholdersData.push({ order: shareholdersData.length + 1, name: '', shares: 0, percentage: 0 });
+      updateShareholdersBody();
+      const tbody = document.getElementById('shareholdersBody');
+      const lastRow = tbody?.lastElementChild;
+      if (lastRow) lastRow.querySelector('input')?.focus();
+    }
+
+    function removeShareholderRow(idx) {
+      shareholdersData.splice(idx, 1);
+      updateShareholdersBody();
+    }
+
+    async function saveShareholders(sheet) {
+      const rows = document.querySelectorAll('#shareholdersBody tr');
+      const shareholders = [];
+      rows.forEach((row, i) => {
+        const inputs = row.querySelectorAll('input');
+        const name = inputs[0]?.value?.trim();
+        const shares = Number(inputs[1]?.value) || 0;
+        const percentage = Number(inputs[2]?.value) || 0;
+        if (name) shareholders.push({ order: i + 1, name, shares, percentage: percentage || undefined });
+      });
+
+      toast('กำลังบันทึกผู้ถือหุ้น...');
+      const res = await api('/companies/' + encodeURIComponent(sheet) + '/shareholders', {
+        method: 'PUT',
+        body: JSON.stringify({ shareholders }),
+      });
+      if (res?.success) {
+        toast(`บันทึกผู้ถือหุ้นสำเร็จ (${res.count} คน)`);
+        loadCompanyDetail(sheet);
+      } else {
+        toast(res?.error || 'เกิดข้อผิดพลาด');
+      }
+    }
+
+    // ===== Documents =====
+    async function uploadDocForName(sheet, docName, input) {
+      if (!input.files.length) return;
+      const form = new FormData();
+      form.append('file', input.files[0]);
+      form.append('documentName', docName);
+      toast('กำลังอัปโหลด...');
+      const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success) {
+        toast('อัปโหลดสำเร็จ');
+        loadCompanyDetail(sheet);
+      } else {
+        toast('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function uploadNewDoc(sheet) {
+      const nameInput = document.getElementById('newDocName');
+      const fileInput = document.getElementById('newDocFile');
+      const docName = nameInput?.value?.trim();
+      if (!docName) { toast('กรุณาใส่ชื่อเอกสาร'); return; }
+      if (!fileInput?.files?.length) { toast('เลือกไฟล์ก่อน'); return; }
+
+      const form = new FormData();
+      form.append('file', fileInput.files[0]);
+      form.append('documentName', docName);
+      toast('กำลังอัปโหลด...');
+      const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success) {
+        toast('อัปโหลดเอกสารสำเร็จ');
+        loadCompanyDetail(sheet);
+      } else {
+        toast('เกิดข้อผิดพลาด');
+      }
+    }
+
+    async function deleteDoc(fileId, sheet) {
+      if (!confirm('ต้องการลบเอกสารนี้?')) return;
+      const res = await api('/documents/' + fileId, { method: 'DELETE' });
+      if (res?.success) { toast('ลบสำเร็จ'); loadCompanyDetail(sheet); }
+    }
+
+    // ===== Edit field (kept for backward compat) =====
     let editCtx = {};
     function openEdit(sheet, label, currentVal) {
       editCtx = { sheet, label };
@@ -366,7 +767,6 @@
       document.getElementById('editFieldValue').value = currentVal;
       document.getElementById('editModal').classList.add('show');
     }
-    function closeModal() { document.getElementById('editModal').classList.remove('show'); }
 
     document.getElementById('editForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -377,30 +777,12 @@
       });
       if (res?.success) {
         toast('บันทึกสำเร็จ');
-        closeModal();
+        closeAllModals();
         loadCompanyDetail(editCtx.sheet);
       } else {
         toast('เกิดข้อผิดพลาด');
       }
     });
-
-    // ===== Upload/Delete doc =====
-    async function uploadDoc(sheet) {
-      const input = document.getElementById('uploadFile');
-      if (!input.files.length) { toast('เลือกไฟล์ก่อน'); return; }
-      const form = new FormData();
-      form.append('file', input.files[0]);
-      const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
-      const data = await res.json();
-      if (data.success) { toast('อัปโหลดสำเร็จ'); loadCompanyDetail(sheet); }
-      else toast('เกิดข้อผิดพลาด');
-    }
-
-    async function deleteDoc(fileId, sheet) {
-      if (!confirm('ต้องการลบเอกสารนี้?')) return;
-      const res = await api('/documents/' + fileId, { method: 'DELETE' });
-      if (res?.success) { toast('ลบสำเร็จ'); loadCompanyDetail(sheet); }
-    }
 
     // ===== Versions =====
     async function loadVersions() {
@@ -410,14 +792,14 @@
       el.innerHTML = versions.slice(0, 50).map(v => `
         <div class="timeline-item">
           <div style="display:flex;justify-content:space-between;">
-            <span class="field">${v.fieldChanged} <span class="badge badge-blue">${v.companySheet}</span></span>
-            <span class="date">${v.timestamp}</span>
+            <span class="field">${escHtml(v.fieldChanged)} <span class="badge badge-blue">${escHtml(v.companySheet)}</span></span>
+            <span class="date">${escHtml(v.timestamp)}</span>
           </div>
           <div class="diff">
-            <div class="old">เดิม: ${v.oldValue || '-'}</div>
-            <div class="new">ใหม่: ${v.newValue || '-'}</div>
+            <div class="old">เดิม: ${escHtml(v.oldValue || '-')}</div>
+            <div class="new">ใหม่: ${escHtml(v.newValue || '-')}</div>
           </div>
-          <div class="date" style="margin-top:4px;">โดย: ${v.changedBy || '-'}</div>
+          <div class="date" style="margin-top:4px;">โดย: ${escHtml(v.changedBy || '-')}</div>
         </div>
       `).join('');
     }
@@ -435,14 +817,14 @@
           <thead>
             <tr>
               <th>LINE User ID</th><th>ชื่อ</th><th>Role</th>
-              ${companySheets.map(s => `<th style="text-align:center;">${s}</th>`).join('')}
+              ${companySheets.map(s => `<th style="text-align:center;">${escHtml(s)}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
             ${permissions.map((p, i) => `
               <tr>
-                <td><input type="text" value="${p.lineUserId}" data-row="${i}" data-field="lineUserId" style="width:120px;padding:4px;font-size:0.8em;"></td>
-                <td><input type="text" value="${p.displayName}" data-row="${i}" data-field="displayName" style="width:80px;padding:4px;font-size:0.8em;"></td>
+                <td><input type="text" value="${escHtml(p.lineUserId)}" data-row="${i}" data-field="lineUserId" style="width:120px;padding:4px;font-size:0.8em;"></td>
+                <td><input type="text" value="${escHtml(p.displayName)}" data-row="${i}" data-field="displayName" style="width:80px;padding:4px;font-size:0.8em;"></td>
                 <td>
                   <select data-row="${i}" data-field="role" style="padding:4px;font-size:0.8em;">
                     <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>viewer</option>
@@ -451,7 +833,7 @@
                 </td>
                 ${companySheets.map(s => `
                   <td style="text-align:center;">
-                    <input type="checkbox" data-row="${i}" data-company="${s}" ${p.companies?.[s] ? 'checked' : ''}>
+                    <input type="checkbox" data-row="${i}" data-company="${escHtml(s)}" ${p.companies?.[s] ? 'checked' : ''}>
                   </td>
                 `).join('')}
               </tr>
@@ -497,8 +879,8 @@
 
       el.innerHTML = logs.map(l => `
         <div style="margin-bottom:8px;">
-          <div class="chat-meta">${l.timestamp} | ${l.userId} | ${l.companyContext || '-'}</div>
-          <div class="chat-bubble ${l.role}">${l.message}</div>
+          <div class="chat-meta">${escHtml(l.timestamp)} | ${escHtml(l.userId)} | ${escHtml(l.companyContext || '-')}</div>
+          <div class="chat-bubble ${l.role}">${escHtml(l.message)}</div>
         </div>
       `).join('');
     }

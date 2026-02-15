@@ -1,5 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { listCompanySheets, parseCompanySheet, updateCompanyField, appendVersion, thaiNow } from '@company-bot/shared';
+import {
+  listCompanySheets, parseCompanySheet, updateCompanyField, appendVersion, thaiNow,
+  createCompanySheet, deleteCompanySheet, updateDirectors, updateShareholders,
+} from '@company-bot/shared';
+import { Director, Shareholder } from '@company-bot/shared';
 
 export const companiesRouter = Router();
 
@@ -28,6 +32,41 @@ companiesRouter.get('/', async (_req: Request, res: Response) => {
       })
     );
     res.json(companies);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Create new company */
+companiesRouter.post('/', async (req: Request, res: Response) => {
+  try {
+    const { sheetName } = req.body;
+    if (!sheetName || typeof sheetName !== 'string' || !sheetName.trim()) {
+      res.status(400).json({ error: 'sheetName is required' });
+      return;
+    }
+
+    const trimmed = sheetName.trim();
+
+    // Check for duplicate
+    const existing = await listCompanySheets();
+    if (existing.includes(trimmed)) {
+      res.status(409).json({ error: `Sheet "${trimmed}" already exists` });
+      return;
+    }
+
+    const result = await createCompanySheet(trimmed);
+
+    await appendVersion({
+      timestamp: thaiNow(),
+      companySheet: trimmed,
+      fieldChanged: 'สร้างบริษัทใหม่',
+      oldValue: '',
+      newValue: trimmed,
+      changedBy: 'admin',
+    });
+
+    res.json({ success: true, sheetName: trimmed, driveFolderId: result.driveFolderId });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -72,6 +111,93 @@ companiesRouter.put('/:sheet', async (req: Request, res: Response) => {
     });
 
     res.json({ success: true, row: result.row, oldValue: result.oldValue });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Delete company */
+companiesRouter.delete('/:sheet', async (req: Request, res: Response) => {
+  try {
+    const sheet: string = req.params.sheet as string;
+    await deleteCompanySheet(sheet);
+
+    await appendVersion({
+      timestamp: thaiNow(),
+      companySheet: sheet,
+      fieldChanged: 'ลบบริษัท',
+      oldValue: sheet,
+      newValue: '',
+      changedBy: 'admin',
+    });
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Update directors */
+companiesRouter.put('/:sheet/directors', async (req: Request, res: Response) => {
+  try {
+    const sheet: string = req.params.sheet as string;
+    const { directors } = req.body as { directors: Director[] };
+
+    if (!Array.isArray(directors)) {
+      res.status(400).json({ error: 'directors array is required' });
+      return;
+    }
+
+    // Get old data for version log
+    const oldCompany = await parseCompanySheet(sheet);
+    const oldNames = oldCompany.directors.map(d => d.name).join(', ');
+
+    await updateDirectors(sheet, directors);
+
+    const newNames = directors.map(d => d.name).join(', ');
+    await appendVersion({
+      timestamp: thaiNow(),
+      companySheet: sheet,
+      fieldChanged: 'กรรมการ',
+      oldValue: oldNames || '-',
+      newValue: newNames || '-',
+      changedBy: 'admin',
+    });
+
+    res.json({ success: true, count: directors.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Update shareholders */
+companiesRouter.put('/:sheet/shareholders', async (req: Request, res: Response) => {
+  try {
+    const sheet: string = req.params.sheet as string;
+    const { shareholders } = req.body as { shareholders: Shareholder[] };
+
+    if (!Array.isArray(shareholders)) {
+      res.status(400).json({ error: 'shareholders array is required' });
+      return;
+    }
+
+    // Get old data for version log
+    const oldCompany = await parseCompanySheet(sheet);
+    const oldNames = oldCompany.shareholders.map(s => s.name).join(', ');
+
+    await updateShareholders(sheet, shareholders);
+
+    const newNames = shareholders.map(s => s.name).join(', ');
+    await appendVersion({
+      timestamp: thaiNow(),
+      companySheet: sheet,
+      fieldChanged: 'ผู้ถือหุ้น',
+      oldValue: oldNames || '-',
+      newValue: newNames || '-',
+      changedBy: 'admin',
+    });
+
+    res.json({ success: true, count: shareholders.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
