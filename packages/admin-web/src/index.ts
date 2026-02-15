@@ -1,5 +1,6 @@
 import express from 'express';
-import session from 'express-session';
+import cookieParser from 'cookie-parser';
+import crypto from 'crypto';
 import path from 'path';
 import { config } from './config';
 import { companiesRouter } from './routes/companies';
@@ -11,25 +12,28 @@ import { syncRouter } from './routes/sync';
 
 const app = express();
 
-// Session
-app.use(session({
-  secret: config.sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }, // 24h
-}));
+// Signed cookies (survive server restarts)
+app.use(cookieParser(config.sessionSecret));
 
 // Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Create auth token from username+secret (deterministic, no server state)
+function createAuthToken(): string {
+  return crypto.createHmac('sha256', config.sessionSecret).update('authenticated').digest('hex');
+}
+
+function isAuthenticated(req: express.Request): boolean {
+  return req.signedCookies?.auth_token === createAuthToken();
+}
+
 // Auth middleware
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction): void {
-  if ((req.session as any)?.authenticated) {
+  if (isAuthenticated(req)) {
     next();
     return;
   }
-  // Allow login endpoint
   if (req.path === '/api/login' || req.path === '/login' || req.path.startsWith('/assets/')) {
     next();
     return;
@@ -45,17 +49,21 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (username === config.adminUsername && password === config.adminPassword) {
-    (req.session as any).authenticated = true;
+    res.cookie('auth_token', createAuthToken(), {
+      signed: true,
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: 'lax',
+    });
     res.json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
   }
 });
 
-app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+app.post('/api/logout', (_req, res) => {
+  res.clearCookie('auth_token');
+  res.json({ success: true });
 });
 
 // Static frontend (login page accessible without auth)
