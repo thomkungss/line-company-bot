@@ -159,7 +159,7 @@
       <div class="card">
         <h3>ภาพรวมบริษัท</h3>
         <table>
-          <thead><tr><th>บริษัท</th><th>ชื่อภาษาอังกฤษ</th><th>เลขทะเบียน</th><th>ทุน</th><th>กรรมการ</th><th>ผู้ถือหุ้น</th></tr></thead>
+          <thead><tr><th>บริษัท</th><th>ชื่อภาษาอังกฤษ</th><th>เลขทะเบียน</th><th>ทุน</th><th>กรรมการ</th><th>ผู้ถือหุ้น</th><th></th></tr></thead>
           <tbody id="dashTable"></tbody>
         </table>
       </div>
@@ -327,6 +327,10 @@
           <td>${fmt(c.registeredCapital)}</td>
           <td>${c.directorCount || 0}</td>
           <td>${c.shareholderCount || 0}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm btn-secondary" onclick="goViewCompany('${escHtml(c.sheetName)}')">View</button>
+            <button class="btn btn-sm btn-primary" onclick="goEditCompany('${escHtml(c.sheetName)}')">Edit</button>
+          </td>
         </tr>
       `).join('');
     }
@@ -338,6 +342,20 @@
         toast(`Sync สำเร็จ: ${res.synced} บริษัท`);
         loadDashboard();
       }
+    }
+
+    // ===== Dashboard → Company shortcuts =====
+    function goViewCompany(sheet) {
+      // Switch to companies page and show detail
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('[data-page]').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-companies').classList.add('active');
+      document.querySelector('[data-page="companies"]').classList.add('active');
+      loadCompanyDetail(sheet);
+    }
+
+    function goEditCompany(sheet) {
+      goViewCompany(sheet);
     }
 
     // ===== Create Company =====
