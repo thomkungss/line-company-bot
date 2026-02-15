@@ -234,6 +234,14 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
     });
   }
 
+  // Build shareholder text for right column: "1. ชื่อ 99%\n2. ชื่อ 1%"
+  const shareholderText = company.shareholders.length > 0
+    ? company.shareholders.slice(0, 5).map(s => {
+        const pct = s.percentage ? ` ${s.percentage}%` : '';
+        return `${s.order}. ${s.name}${pct}`;
+      }).join('\n') + (company.shareholders.length > 5 ? `\n...อีก ${company.shareholders.length - 5} คน` : '')
+    : '-';
+
   bodyContents.push(
     { type: 'separator', margin: 'md' },
     // Capital
@@ -246,35 +254,16 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
       ],
       margin: 'md',
     },
-    // Shareholders with names
+    // Shareholders — horizontal layout like ทุนจดทะเบียน
     {
-      type: 'text',
-      text: 'ผู้ถือหุ้น',
-      size: 'sm',
-      color: '#1DB446',
-      weight: 'bold',
-      margin: 'md',
-    },
-    ...company.shareholders.slice(0, 5).flatMap(s => {
-      const detail = [
-        s.percentage ? `${s.percentage}%` : '',
-        s.shares > 0 ? `${formatNumber(s.shares)} หุ้น` : '',
-      ].filter(Boolean).join(' | ');
-      const items: any[] = [
-        { type: 'text', text: `${s.order}. ${s.name}`, size: 'xs', color: '#555555', wrap: true, margin: 'sm' },
-      ];
-      if (detail) {
-        items.push({ type: 'text', text: `   ${detail}`, size: 'xxs', color: '#17A2B8' });
-      }
-      return items;
-    }),
-    ...(company.shareholders.length > 5 ? [{
-      type: 'text',
-      text: `...และอีก ${company.shareholders.length - 5} คน`,
-      size: 'xs',
-      color: '#999999',
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        { type: 'text', text: 'ผู้ถือหุ้น', size: 'sm', color: '#999999', flex: 4 },
+        { type: 'text', text: shareholderText, size: 'sm', color: '#333333', flex: 6, wrap: true },
+      ],
       margin: 'sm',
-    }] : []),
+    },
     { type: 'separator', margin: 'md' },
     // Address
     {
