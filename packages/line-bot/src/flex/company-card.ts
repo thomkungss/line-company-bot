@@ -236,17 +236,6 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
 
   bodyContents.push(
     { type: 'separator', margin: 'md' },
-    // Authority
-    {
-      type: 'box',
-      layout: 'horizontal',
-      contents: [
-        { type: 'text', text: 'อำนาจกรรมการ', size: 'sm', color: '#999999', flex: 4 },
-        { type: 'text', text: truncate(company.authorizedSignatory || '-', 80), size: 'xs', color: '#333333', flex: 6, wrap: true },
-      ],
-      margin: 'md',
-    },
-    { type: 'separator', margin: 'md' },
     // Capital
     {
       type: 'box',
@@ -257,16 +246,35 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
       ],
       margin: 'md',
     },
-    // Shareholders summary
+    // Shareholders with names
     {
-      type: 'box',
-      layout: 'horizontal',
-      contents: [
-        { type: 'text', text: 'ผู้ถือหุ้น', size: 'sm', color: '#999999', flex: 4 },
-        { type: 'text', text: `${company.shareholders.length} คน`, size: 'sm', color: '#333333', flex: 6 },
-      ],
-      margin: 'sm',
+      type: 'text',
+      text: 'ผู้ถือหุ้น',
+      size: 'sm',
+      color: '#1DB446',
+      weight: 'bold',
+      margin: 'md',
     },
+    ...company.shareholders.slice(0, 5).flatMap(s => {
+      const detail = [
+        s.percentage ? `${s.percentage}%` : '',
+        s.shares > 0 ? `${formatNumber(s.shares)} หุ้น` : '',
+      ].filter(Boolean).join(' | ');
+      const items: any[] = [
+        { type: 'text', text: `${s.order}. ${s.name}`, size: 'xs', color: '#555555', wrap: true, margin: 'sm' },
+      ];
+      if (detail) {
+        items.push({ type: 'text', text: `   ${detail}`, size: 'xxs', color: '#17A2B8' });
+      }
+      return items;
+    }),
+    ...(company.shareholders.length > 5 ? [{
+      type: 'text',
+      text: `...และอีก ${company.shareholders.length - 5} คน`,
+      size: 'xs',
+      color: '#999999',
+      margin: 'sm',
+    }] : []),
     { type: 'separator', margin: 'md' },
     // Address
     {
