@@ -91,6 +91,18 @@
     /* Loading */
     .loading { text-align: center; padding: 40px; color: #999; }
 
+    /* Mapping */
+    .mapping-view-btn.active { background: #1DB446; color: white; }
+    .mapping-node { position: absolute; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); cursor: grab; user-select: none; min-width: 160px; z-index: 2; transition: box-shadow 0.15s; }
+    .mapping-node:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+    .mapping-node.dragging { cursor: grabbing; box-shadow: 0 6px 24px rgba(0,0,0,0.22); z-index: 10; }
+    .mapping-node-person { background: white; border: 2px solid #1DB446; }
+    .mapping-node-person .mn-header { background: #1DB446; color: white; padding: 8px 14px; border-radius: 7px 7px 0 0; font-weight: 600; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mapping-node-person .mn-body { padding: 6px 14px 8px; font-size: 0.78em; color: #666; }
+    .mapping-node-company { background: white; border: 1.5px solid #ddd; }
+    .mapping-node-company .mn-header { padding: 8px 14px; font-weight: 600; font-size: 0.82em; color: #333; border-bottom: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .mapping-node-company .mn-body { padding: 6px 14px 8px; font-size: 0.78em; color: #888; }
+
     /* Toast — center popup */
     .toast-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 300; background: rgba(0,0,0,0.3); }
     .toast-overlay.show { display: flex; animation: fadeIn 0.2s; }
@@ -179,6 +191,7 @@
       <a href="#" data-page="versions"><span class="icon">&#9200;</span> ประวัติเปลี่ยนแปลง</a>
       <a href="#" data-page="permissions"><span class="icon">&#128274;</span> จัดการสิทธิ์</a>
       <a href="#" data-page="chatlog"><span class="icon">&#128172;</span> Chat Log</a>
+      <a href="#" data-page="mapping"><span class="icon">&#9741;</span> Mapping</a>
       <a href="#" id="logoutBtn"><span class="icon">&#10140;</span> ออกจากระบบ</a>
     </nav>
   </div>
@@ -239,6 +252,31 @@
     <div id="page-chatlog" class="page">
       <div class="topbar"><h1>Chat Log</h1></div>
       <div class="card" id="chatLogList"><div class="loading">กำลังโหลด...</div></div>
+    </div>
+
+    <!-- Mapping -->
+    <div id="page-mapping" class="page">
+      <div class="topbar">
+        <h1>Mapping</h1>
+        <div class="actions" style="gap:6px;">
+          <button class="btn btn-primary mapping-view-btn active" data-view="shareholders" onclick="setMappingView('shareholders')">ผู้ถือหุ้น</button>
+          <button class="btn btn-secondary mapping-view-btn" data-view="directors" onclick="setMappingView('directors')">กรรมการ</button>
+          <button class="btn btn-secondary mapping-view-btn" data-view="all" onclick="setMappingView('all')">ทั้งหมด</button>
+          <select id="mappingPersonSelect" onchange="onMappingPersonSelect(this.value)" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;min-width:200px;">
+            <option value="">-- ทุกคน --</option>
+          </select>
+        </div>
+      </div>
+      <div id="mappingCanvas" style="position:relative;min-height:600px;background:#fafbfc;border-radius:12px;overflow:auto;background-image:radial-gradient(circle,#ddd 1px,transparent 1px);background-size:24px 24px;">
+        <svg id="mappingSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;">
+          <defs>
+            <marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
+            </marker>
+          </defs>
+        </svg>
+        <div id="mappingNodes" style="position:relative;z-index:2;"></div>
+      </div>
     </div>
   </div>
 
@@ -1424,6 +1462,307 @@
       reader.readAsText(input.files[0], 'UTF-8');
     }
 
+    // ===== Mapping =====
+    let mappingData = null; // { companies: [...] }
+    let mappingView = 'shareholders'; // 'shareholders' | 'directors' | 'all'
+    let mappingSelectedPerson = '';
+    let mappingNodePositions = {}; // id -> { x, y }
+
+    async function loadMapping() {
+      if (!mappingData) {
+        const el = document.getElementById('mappingNodes');
+        el.innerHTML = '<div class="loading" style="padding:60px;">กำลังโหลดข้อมูล...</div>';
+        mappingData = await api('/companies/mapping');
+      }
+      populateMappingPersonSelect();
+      renderMapping();
+    }
+
+    function setMappingView(view) {
+      mappingView = view;
+      document.querySelectorAll('.mapping-view-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.view === view);
+        b.className = b.classList.contains('active') ? 'btn btn-primary mapping-view-btn active' : 'btn btn-secondary mapping-view-btn';
+      });
+      mappingSelectedPerson = '';
+      document.getElementById('mappingPersonSelect').value = '';
+      mappingNodePositions = {};
+      populateMappingPersonSelect();
+      renderMapping();
+    }
+
+    function populateMappingPersonSelect() {
+      if (!mappingData) return;
+      var sel = document.getElementById('mappingPersonSelect');
+      var people = new Set();
+      mappingData.companies.forEach(function(c) {
+        if (mappingView === 'shareholders' || mappingView === 'all') {
+          c.shareholders.forEach(function(s) { if (s.name) people.add(s.name); });
+        }
+        if (mappingView === 'directors' || mappingView === 'all') {
+          c.directors.forEach(function(d) { if (d.name) people.add(d.name); });
+        }
+      });
+      var sorted = Array.from(people).sort();
+      sel.innerHTML = '<option value="">-- ทุกคน (' + sorted.length + ') --</option>' +
+        sorted.map(function(n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('');
+    }
+
+    function onMappingPersonSelect(name) {
+      mappingSelectedPerson = name;
+      mappingNodePositions = {};
+      renderMapping();
+    }
+
+    function renderMapping() {
+      if (!mappingData) return;
+      var nodesEl = document.getElementById('mappingNodes');
+      var svgEl = document.getElementById('mappingSvg');
+      var canvas = document.getElementById('mappingCanvas');
+
+      // Build relationship data
+      var personMap = {}; // name -> { type: 'shareholder'|'director'|'both', relations: [{ companyIdx, label }] }
+      var companies = mappingData.companies;
+
+      companies.forEach(function(c, ci) {
+        if (mappingView === 'shareholders' || mappingView === 'all') {
+          c.shareholders.forEach(function(s) {
+            if (!s.name) return;
+            if (!personMap[s.name]) personMap[s.name] = { type: 'shareholder', relations: [] };
+            else if (personMap[s.name].type === 'director') personMap[s.name].type = 'both';
+            personMap[s.name].relations.push({ companyIdx: ci, label: (s.percentage ? s.percentage + '%' : s.shares ? s.shares.toLocaleString() + ' หุ้น' : ''), role: 'shareholder' });
+          });
+        }
+        if (mappingView === 'directors' || mappingView === 'all') {
+          c.directors.forEach(function(d) {
+            if (!d.name) return;
+            if (!personMap[d.name]) personMap[d.name] = { type: 'director', relations: [] };
+            else if (personMap[d.name].type === 'shareholder') personMap[d.name].type = 'both';
+            personMap[d.name].relations.push({ companyIdx: ci, label: d.position || 'กรรมการ', role: 'director' });
+          });
+        }
+      });
+
+      // Filter by selected person
+      var visiblePersons, visibleCompanyIdxs;
+      if (mappingSelectedPerson && personMap[mappingSelectedPerson]) {
+        visiblePersons = [mappingSelectedPerson];
+        visibleCompanyIdxs = new Set(personMap[mappingSelectedPerson].relations.map(function(r) { return r.companyIdx; }));
+      } else {
+        visiblePersons = Object.keys(personMap).sort();
+        visibleCompanyIdxs = new Set();
+        visiblePersons.forEach(function(name) {
+          personMap[name].relations.forEach(function(r) { visibleCompanyIdxs.add(r.companyIdx); });
+        });
+      }
+
+      var companyIdxArr = Array.from(visibleCompanyIdxs).sort(function(a,b){return a-b;});
+
+      if (visiblePersons.length === 0) {
+        nodesEl.innerHTML = '<div style="text-align:center;padding:60px;color:#999;">ไม่พบข้อมูลความสัมพันธ์</div>';
+        svgEl.innerHTML = '';
+        return;
+      }
+
+      // Layout
+      var nodeW = 180;
+      var personSpacing = 200;
+      var companySpacing = 220;
+      var topY = 40;
+      var bottomY = 300;
+      var canvasW = Math.max(
+        visiblePersons.length * personSpacing,
+        companyIdxArr.length * companySpacing,
+        600
+      ) + 100;
+      var canvasH = bottomY + 140;
+
+      // Center rows
+      var personStartX = Math.max(40, (canvasW - visiblePersons.length * personSpacing) / 2);
+      var companyStartX = Math.max(40, (canvasW - companyIdxArr.length * companySpacing) / 2);
+
+      canvas.style.minWidth = canvasW + 'px';
+      canvas.style.minHeight = canvasH + 'px';
+
+      // Assign default positions
+      var nodePos = {}; // id -> {x, y}
+      visiblePersons.forEach(function(name, i) {
+        var id = 'p_' + name;
+        if (mappingNodePositions[id]) {
+          nodePos[id] = mappingNodePositions[id];
+        } else {
+          nodePos[id] = { x: personStartX + i * personSpacing, y: topY };
+        }
+      });
+      companyIdxArr.forEach(function(ci, i) {
+        var id = 'c_' + ci;
+        if (mappingNodePositions[id]) {
+          nodePos[id] = mappingNodePositions[id];
+        } else {
+          nodePos[id] = { x: companyStartX + i * companySpacing, y: bottomY };
+        }
+      });
+
+      // Render nodes
+      var html = '';
+      visiblePersons.forEach(function(name) {
+        var id = 'p_' + name;
+        var p = nodePos[id];
+        var info = personMap[name];
+        var typeLabel = info.type === 'both' ? 'ผู้ถือหุ้น / กรรมการ' : (info.type === 'shareholder' ? 'ผู้ถือหุ้น' : 'กรรมการ');
+        html += '<div class="mapping-node mapping-node-person" data-node-id="' + escHtml(id) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + nodeW + 'px;" onmousedown="startDragNode(event,this)">' +
+          '<div class="mn-header">' + escHtml(name) + '</div>' +
+          '<div class="mn-body">' + typeLabel + ' &middot; ' + info.relations.length + ' บริษัท</div>' +
+          '</div>';
+      });
+      companyIdxArr.forEach(function(ci) {
+        var id = 'c_' + ci;
+        var p = nodePos[id];
+        var c = companies[ci];
+        html += '<div class="mapping-node mapping-node-company" data-node-id="' + escHtml(id) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + nodeW + 'px;" onmousedown="startDragNode(event,this)">' +
+          '<div class="mn-header">' + escHtml(c.companyNameTh || c.sheetName) + '</div>' +
+          '<div class="mn-body">ผู้ถือหุ้น ' + c.shareholders.length + ' / กรรมการ ' + c.directors.length + '</div>' +
+          '</div>';
+      });
+      nodesEl.innerHTML = html;
+
+      // Draw SVG lines
+      drawMappingLines(visiblePersons, companyIdxArr, personMap, nodePos, nodeW);
+    }
+
+    function drawMappingLines(persons, companyIdxArr, personMap, nodePos, nodeW) {
+      var svgEl = document.getElementById('mappingSvg');
+      var canvas = document.getElementById('mappingCanvas');
+      svgEl.setAttribute('width', canvas.scrollWidth);
+      svgEl.setAttribute('height', canvas.scrollHeight);
+
+      var paths = '<defs><marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse"><polygon points="0 0, 10 3.5, 0 7" fill="#999"/></marker></defs>';
+
+      // Map companyIdx to index in array for quick lookup
+      var ciSet = {};
+      companyIdxArr.forEach(function(ci) { ciSet[ci] = true; });
+
+      persons.forEach(function(name) {
+        var pid = 'p_' + name;
+        var pp = nodePos[pid];
+        if (!pp) return;
+        var sx = pp.x + nodeW / 2;
+        var sy = pp.y + 58; // approx bottom of person node
+
+        personMap[name].relations.forEach(function(r) {
+          if (!ciSet[r.companyIdx]) return;
+          var cid = 'c_' + r.companyIdx;
+          var cp = nodePos[cid];
+          if (!cp) return;
+          var ex = cp.x + nodeW / 2;
+          var ey = cp.y; // top of company node
+
+          var dy = (ey - sy);
+          var cp1y = sy + dy * 0.4;
+          var cp2y = sy + dy * 0.6;
+          var color = r.role === 'director' ? '#4a90d9' : '#999';
+
+          paths += '<path d="M' + sx + ',' + sy + ' C' + sx + ',' + cp1y + ' ' + ex + ',' + cp2y + ' ' + ex + ',' + ey + '" fill="none" stroke="' + color + '" stroke-width="1.5" marker-end="url(#arrowMarker)" opacity="0.6"/>';
+
+          // Label on the path
+          var mx = (sx + ex) / 2;
+          var my = (sy + ey) / 2;
+          if (r.label) {
+            paths += '<text x="' + mx + '" y="' + (my - 4) + '" text-anchor="middle" font-size="10" fill="' + color + '" font-family="sans-serif">' + escHtml(r.label) + '</text>';
+          }
+        });
+      });
+
+      svgEl.innerHTML = paths;
+    }
+
+    // Drag & Drop for mapping nodes
+    var dragState = null;
+    function startDragNode(e, el) {
+      e.preventDefault();
+      var nodeId = el.dataset.nodeId;
+      var rect = el.getBoundingClientRect();
+      var canvas = document.getElementById('mappingCanvas');
+      var canvasRect = canvas.getBoundingClientRect();
+      dragState = {
+        el: el,
+        nodeId: nodeId,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        canvasRect: canvasRect,
+        canvas: canvas,
+      };
+      el.classList.add('dragging');
+    }
+
+    document.addEventListener('mousemove', function(e) {
+      if (!dragState) return;
+      var x = e.clientX - dragState.canvasRect.left - dragState.offsetX + dragState.canvas.scrollLeft;
+      var y = e.clientY - dragState.canvasRect.top - dragState.offsetY + dragState.canvas.scrollTop;
+      x = Math.max(0, x);
+      y = Math.max(0, y);
+      dragState.el.style.left = x + 'px';
+      dragState.el.style.top = y + 'px';
+      mappingNodePositions[dragState.nodeId] = { x: x, y: y };
+      // Redraw lines from current node positions
+      redrawMappingLines();
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (!dragState) return;
+      dragState.el.classList.remove('dragging');
+      dragState = null;
+    });
+
+    function redrawMappingLines() {
+      if (!mappingData) return;
+      // Rebuild visible data from current state
+      var nodesEl = document.getElementById('mappingNodes');
+      var allNodes = nodesEl.querySelectorAll('.mapping-node');
+      var nodePos = {};
+      var nodeW = 180;
+      allNodes.forEach(function(n) {
+        nodePos[n.dataset.nodeId] = { x: parseInt(n.style.left) || 0, y: parseInt(n.style.top) || 0 };
+      });
+
+      // Rebuild person/company maps
+      var personMap = {};
+      var companies = mappingData.companies;
+      var companyIdxSet = new Set();
+      var visiblePersons = [];
+
+      companies.forEach(function(c, ci) {
+        if (mappingView === 'shareholders' || mappingView === 'all') {
+          c.shareholders.forEach(function(s) {
+            if (!s.name) return;
+            if (!personMap[s.name]) personMap[s.name] = { type: 'shareholder', relations: [] };
+            else if (personMap[s.name].type === 'director') personMap[s.name].type = 'both';
+            personMap[s.name].relations.push({ companyIdx: ci, label: (s.percentage ? s.percentage + '%' : s.shares ? s.shares.toLocaleString() + ' หุ้น' : ''), role: 'shareholder' });
+          });
+        }
+        if (mappingView === 'directors' || mappingView === 'all') {
+          c.directors.forEach(function(d) {
+            if (!d.name) return;
+            if (!personMap[d.name]) personMap[d.name] = { type: 'director', relations: [] };
+            else if (personMap[d.name].type === 'shareholder') personMap[d.name].type = 'both';
+            personMap[d.name].relations.push({ companyIdx: ci, label: d.position || 'กรรมการ', role: 'director' });
+          });
+        }
+      });
+
+      if (mappingSelectedPerson && personMap[mappingSelectedPerson]) {
+        visiblePersons = [mappingSelectedPerson];
+        personMap[mappingSelectedPerson].relations.forEach(function(r) { companyIdxSet.add(r.companyIdx); });
+      } else {
+        visiblePersons = Object.keys(personMap).sort();
+        visiblePersons.forEach(function(name) {
+          personMap[name].relations.forEach(function(r) { companyIdxSet.add(r.companyIdx); });
+        });
+      }
+
+      drawMappingLines(visiblePersons, Array.from(companyIdxSet), personMap, nodePos, nodeW);
+    }
+
     // ===== Page loader =====
     function loadPage(page) {
       switch(page) {
@@ -1432,6 +1771,7 @@
         case 'versions': loadVersions(); break;
         case 'permissions': loadPermissions(); break;
         case 'chatlog': loadChatLog(); break;
+        case 'mapping': loadMapping(); break;
       }
     }
 

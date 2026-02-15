@@ -161,6 +161,31 @@ companiesRouter.post('/bulk', async (req: Request, res: Response) => {
   }
 });
 
+/** Get all companies with their shareholders and directors for mapping visualization */
+companiesRouter.get('/mapping', async (_req: Request, res: Response) => {
+  try {
+    const names = await listCompanySheets();
+    const companies = await Promise.all(
+      names.map(async (name) => {
+        try {
+          const c = await parseCompanySheet(name);
+          return {
+            sheetName: c.sheetName,
+            companyNameTh: c.companyNameTh,
+            directors: c.directors.filter(d => d.name).map(d => ({ name: d.name, position: d.position || '' })),
+            shareholders: c.shareholders.filter(s => s.name).map(s => ({ name: s.name, shares: s.shares || 0, percentage: s.percentage || 0 })),
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+    res.json({ companies: companies.filter(Boolean) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /** Get all unique director + shareholder names across all companies */
 companiesRouter.get('/all-people', async (_req: Request, res: Response) => {
   try {
