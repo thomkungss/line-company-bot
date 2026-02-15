@@ -5,6 +5,40 @@ import { Readable } from 'stream';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+// Cache company folder IDs to avoid repeated lookups
+const companyFolderCache = new Map<string, string>();
+
+/** Find or create a subfolder for the company inside the root Drive folder */
+async function getOrCreateCompanyFolder(drive: any, rootFolderId: string, companyName: string): Promise<string> {
+  // Check cache first
+  const cached = companyFolderCache.get(companyName);
+  if (cached) return cached;
+
+  // Search for existing folder
+  const searchRes = await drive.files.list({
+    q: `name='${companyName.replace(/'/g, "\\'")}' and '${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id,name)',
+  });
+  const existing = searchRes.data.files;
+  if (existing && existing.length > 0) {
+    companyFolderCache.set(companyName, existing[0].id);
+    return existing[0].id;
+  }
+
+  // Create new folder
+  const folderRes = await drive.files.create({
+    requestBody: {
+      name: companyName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [rootFolderId],
+    },
+    fields: 'id',
+  });
+  const folderId = folderRes.data.id;
+  companyFolderCache.set(companyName, folderId);
+  return folderId;
+}
+
 export const documentsRouter = Router();
 
 /** Get documents for a company */
@@ -27,18 +61,23 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     }
 
     const drive = getDriveClient();
-    const folderId = getDriveFolderId();
+    const rootFolderId = getDriveFolderId();
     const sheet: string = req.params.sheet as string;
     const documentName: string = (req.body.documentName || '').toString().trim();
 
-    // Prefix filename with company name
+    // Get or create company subfolder
+    const companyFolderId = rootFolderId
+      ? await getOrCreateCompanyFolder(drive, rootFolderId, sheet)
+      : undefined;
+
+    // Name file: "ชื่อเอกสาร.ext" inside company folder
     const ext = req.file.originalname.includes('.') ? req.file.originalname.substring(req.file.originalname.lastIndexOf('.')) : '';
     const baseName = documentName || req.file.originalname.replace(/\.[^.]+$/, '');
-    const driveName = `${sheet} - ${baseName}${ext}`;
+    const driveName = `${baseName}${ext}`;
 
     const fileMetadata = {
       name: driveName,
-      parents: folderId ? [folderId] : undefined,
+      parents: companyFolderId ? [companyFolderId] : undefined,
       description: `Document for ${sheet}`,
     };
 
