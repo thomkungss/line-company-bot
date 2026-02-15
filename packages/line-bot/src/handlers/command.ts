@@ -35,12 +35,19 @@ export async function handleCommand(
         return;
       }
       const company = await parseCompanySheet(arg);
-      const flex = buildCompanyDetailFlex(company);
+      const flex = buildCompanyDetailFlex(company, { canViewDocuments: perm.canViewDocuments });
       await client.replyMessage(event.replyToken, flex);
       break;
     }
 
     case '/docs': {
+      if (!perm.canViewDocuments) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'คุณไม่มีสิทธิ์ดูเอกสาร กรุณาติดต่อผู้ดูแลระบบ',
+        });
+        return;
+      }
       if (!arg) {
         await client.replyMessage(event.replyToken, {
           type: 'text',
@@ -105,7 +112,7 @@ export async function handleCommand(
         accessibleNames.map(n => parseCompanySheet(n).catch(() => null))
       );
       const valid = companies.filter(Boolean) as Awaited<ReturnType<typeof parseCompanySheet>>[];
-      const carousel = buildCompanySelectionCarousel(valid);
+      const carousel = buildCompanySelectionCarousel(valid, { canViewDocuments: perm.canViewDocuments });
       await client.replyMessage(event.replyToken, carousel);
       break;
     }

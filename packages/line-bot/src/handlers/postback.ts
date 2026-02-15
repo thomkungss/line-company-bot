@@ -48,7 +48,7 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
     case 'detail': {
       if (!pb.company) return;
       const company = await parseCompanySheet(pb.company);
-      const flex = buildCompanyDetailFlex(company);
+      const flex = buildCompanyDetailFlex(company, { canViewDocuments: perm.canViewDocuments });
       await client.replyMessage(event.replyToken, flex);
       break;
     }
@@ -63,6 +63,13 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
 
     case 'documents': {
       if (!pb.company) return;
+      if (!perm.canViewDocuments) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'คุณไม่มีสิทธิ์ดูเอกสาร กรุณาติดต่อผู้ดูแลระบบ',
+        });
+        return;
+      }
       const company = await parseCompanySheet(pb.company);
       const flex = buildDocumentList(company);
       await client.replyMessage(event.replyToken, flex);

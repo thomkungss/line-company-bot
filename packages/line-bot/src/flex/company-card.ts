@@ -2,8 +2,12 @@ import { FlexMessage, FlexBubble, FlexCarousel } from '@line/bot-sdk';
 import { Company, formatMoney, formatNumber, truncate } from '@company-bot/shared';
 import { config } from '../config';
 
+interface CardOptions {
+  canViewDocuments?: boolean;
+}
+
 /** Build a company selection carousel — shown when user types anything */
-export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage {
+export function buildCompanySelectionCarousel(companies: Company[], opts: CardOptions = {}): FlexMessage {
   const bubbles: FlexBubble[] = companies.map(company => {
     const headerContents: any[] = [
       {
@@ -145,17 +149,17 @@ export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage
           type: 'box',
           layout: 'horizontal',
           contents: [
-            {
-              type: 'button',
+            ...(opts.canViewDocuments !== false ? [{
+              type: 'button' as const,
               action: {
-                type: 'postback',
+                type: 'postback' as const,
                 label: 'เอกสาร',
                 data: `action=documents&company=${encodeURIComponent(company.sheetName)}`,
               },
-              style: 'secondary',
-              height: 'sm',
+              style: 'secondary' as const,
+              height: 'sm' as const,
               flex: 1,
-            },
+            }] : []),
             {
               type: 'button',
               action: {
@@ -189,7 +193,7 @@ export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage
 }
 
 /** Build detailed company Flex Message */
-export function buildCompanyDetailFlex(company: Company): FlexMessage {
+export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {}): FlexMessage {
   const sealUrl = company.sealImageDriveId
     ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
     : undefined;
@@ -329,18 +333,18 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
       type: 'box',
       layout: 'horizontal',
       contents: [
-        {
-          type: 'button',
+        ...(opts.canViewDocuments !== false ? [{
+          type: 'button' as const,
           action: {
-            type: 'postback',
+            type: 'postback' as const,
             label: 'เอกสาร',
             data: `action=documents&company=${encodeURIComponent(company.sheetName)}`,
           },
-          style: 'primary',
+          style: 'primary' as const,
           color: '#17A2B8',
-          height: 'sm',
+          height: 'sm' as const,
           flex: 1,
-        },
+        }] : []),
         {
           type: 'button',
           action: {

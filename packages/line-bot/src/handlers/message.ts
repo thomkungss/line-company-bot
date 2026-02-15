@@ -50,14 +50,16 @@ export async function handleMessage(client: Client, event: MessageEvent): Promis
   );
   const validCompanies = companies.filter(Boolean) as Awaited<ReturnType<typeof parseCompanySheet>>[];
 
+  const cardOpts = { canViewDocuments: perm.canViewDocuments };
+
   if (validCompanies.length === 1) {
     // Single company → show detail card directly
-    const detail = buildCompanyDetailFlex(validCompanies[0]);
+    const detail = buildCompanyDetailFlex(validCompanies[0], cardOpts);
     await client.replyMessage(event.replyToken, detail);
   } else {
     // Multiple companies → carousel of detail cards
     const bubbles = validCompanies.slice(0, 12).map(company => {
-      const msg = buildCompanyDetailFlex(company);
+      const msg = buildCompanyDetailFlex(company, cardOpts);
       return (msg.contents as any);
     });
     const carousel: FlexMessage = {
