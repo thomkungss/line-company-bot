@@ -209,6 +209,7 @@
         <h1>บริษัท</h1>
         <div class="actions">
           <button class="btn btn-primary" onclick="openCreateCompanyModal()">+ เพิ่มบริษัทใหม่</button>
+          <button class="btn btn-secondary" onclick="openCSVModal()">&#8593; อัปโหลด CSV</button>
         </div>
       </div>
       <div id="companyList"></div>
@@ -281,6 +282,31 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
         <button class="btn btn-danger" id="confirmDeleteBtn">ลบบริษัท</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV Upload Modal -->
+  <div class="modal-overlay" id="csvModal">
+    <div class="modal" style="max-width:700px;">
+      <h3>อัปโหลดบริษัทจาก CSV</h3>
+      <p style="font-size:0.85em;color:#666;margin-bottom:16px;">สร้างหลายบริษัทพร้อมกันผ่านไฟล์ CSV</p>
+      <div style="margin-bottom:16px;">
+        <button class="btn btn-secondary" onclick="downloadCSVTemplate()">&#8595; ดาวน์โหลดแม่แบบ CSV</button>
+      </div>
+      <div class="form-group">
+        <label>เลือกไฟล์ CSV</label>
+        <input type="file" id="csvFileInput" accept=".csv" onchange="previewCSV()">
+      </div>
+      <div id="csvPreview" style="display:none;margin-bottom:16px;">
+        <div class="card" style="background:#f8f9fa;margin-bottom:0;">
+          <div id="csvPreviewContent" style="font-size:0.85em;max-height:200px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div id="csvResult" style="display:none;margin-bottom:16px;"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeAllModals()">ปิด</button>
+        <button class="btn btn-primary" id="csvUploadBtn" onclick="uploadCSV()" style="display:none;">อัปโหลด</button>
       </div>
     </div>
   </div>
@@ -721,8 +747,8 @@
     }
 
     function backToList() {
-      document.getElementById('companyList').style.display = 'block';
-      document.getElementById('companyDetail').style.display = 'none';
+      companiesData = [];
+      loadCompanies();
     }
 
     // ===== Save All (general info + directors + shareholders) =====
@@ -1103,6 +1129,174 @@
           <div class="chat-bubble ${l.role}">${escHtml(l.message)}</div>
         </div>
       `).join('');
+    }
+
+    // ===== CSV Bulk Upload =====
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { current += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ',') { result.push(current.trim()); current = ''; }
+          else { current += ch; }
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    function parseCSV(text) {
+      // Strip BOM
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) return [];
+      const headers = parseCSVLine(lines[0]);
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (!cols[0]) continue; // skip empty rows
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = cols[idx] || ''; });
+        rows.push(obj);
+      }
+      return rows;
+    }
+
+    function downloadCSVTemplate() {
+      const BOM = '\uFEFF';
+      const headers = 'ชื่อ Sheet,ชื่อบริษัท,Company Name,เลขทะเบียน,ทุนจดทะเบียน,อำนาจกรรมการ,ที่ตั้งสำนักงานใหญ่,วัตถุประสงค์,กรรมการ (คั่นด้วย |),ผู้ถือหุ้น (ชื่อ:หุ้น:% คั่นด้วย |)';
+      const example = 'บริษัท ตัวอย่าง จำกัด,บริษัท ตัวอย่าง จำกัด,Example Co. Ltd.,0123456789012,"1,000,000 บาท","กรรมการ 2 คนลงลายมือชื่อร่วมกัน","123 ถ.สุขุมวิท กรุงเทพฯ 10110",ประกอบกิจการทั่วไป,นายสมชาย ใจดี|นางสมหญิง ใจงาม,นายสมชาย ใจดี:9900:99|นางสมหญิง ใจงาม:100:1';
+      const csv = BOM + headers + '\n' + example + '\n';
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'company_template.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openCSVModal() {
+      document.getElementById('csvFileInput').value = '';
+      document.getElementById('csvPreview').style.display = 'none';
+      document.getElementById('csvResult').style.display = 'none';
+      document.getElementById('csvUploadBtn').style.display = 'none';
+      document.getElementById('csvModal').classList.add('show');
+    }
+
+    function previewCSV() {
+      const input = document.getElementById('csvFileInput');
+      if (!input.files.length) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const rows = parseCSV(e.target.result);
+        const previewEl = document.getElementById('csvPreview');
+        const contentEl = document.getElementById('csvPreviewContent');
+        const uploadBtn = document.getElementById('csvUploadBtn');
+        const resultEl = document.getElementById('csvResult');
+        resultEl.style.display = 'none';
+        if (rows.length === 0) {
+          previewEl.style.display = 'block';
+          contentEl.innerHTML = '<p style="color:#e74c3c;">ไม่พบข้อมูลในไฟล์ CSV</p>';
+          uploadBtn.style.display = 'none';
+          return;
+        }
+        let html = '<strong>พบ ' + rows.length + ' บริษัท:</strong><br>';
+        html += '<table style="width:100%;font-size:0.85em;margin-top:8px;"><tr><th>#</th><th>ชื่อ Sheet</th><th>ชื่อบริษัท</th><th>กรรมการ</th><th>ผู้ถือหุ้น</th></tr>';
+        rows.forEach(function(r, i) {
+          const dirCount = (r['กรรมการ (คั่นด้วย |)'] || '').split('|').filter(function(x){return x.trim();}).length;
+          const shCount = (r['ผู้ถือหุ้น (ชื่อ:หุ้น:% คั่นด้วย |)'] || '').split('|').filter(function(x){return x.trim();}).length;
+          html += '<tr><td>' + (i+1) + '</td><td>' + escHtml(r['ชื่อ Sheet'] || '') + '</td><td>' + escHtml(r['ชื่อบริษัท'] || '') + '</td><td>' + dirCount + '</td><td>' + shCount + '</td></tr>';
+        });
+        html += '</table>';
+        previewEl.style.display = 'block';
+        contentEl.innerHTML = html;
+        uploadBtn.style.display = 'inline-block';
+      };
+      reader.readAsText(input.files[0], 'UTF-8');
+    }
+
+    async function uploadCSV() {
+      const input = document.getElementById('csvFileInput');
+      if (!input.files.length) { toast('เลือกไฟล์ก่อน'); return; }
+      const uploadBtn = document.getElementById('csvUploadBtn');
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'กำลังสร้าง...';
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const rows = parseCSV(e.target.result);
+        if (rows.length === 0) { toast('ไม่พบข้อมูล'); uploadBtn.disabled = false; uploadBtn.textContent = 'อัปโหลด'; return; }
+
+        // Map CSV rows to company objects
+        const companies = rows.map(function(r) {
+          // Parse directors
+          const directors = (r['กรรมการ (คั่นด้วย |)'] || '').split('|').filter(function(x){return x.trim();}).map(function(name) {
+            return { name: name.trim(), position: '' };
+          });
+
+          // Parse shareholders
+          const shareholders = (r['ผู้ถือหุ้น (ชื่อ:หุ้น:% คั่นด้วย |)'] || '').split('|').filter(function(x){return x.trim();}).map(function(item, idx) {
+            const parts = item.trim().split(':');
+            return {
+              order: idx + 1,
+              name: (parts[0] || '').trim(),
+              shares: Number(parts[1]) || 0,
+              percentage: Number(parts[2]) || 0,
+            };
+          });
+
+          return {
+            sheetName: (r['ชื่อ Sheet'] || '').trim(),
+            companyNameTh: (r['ชื่อบริษัท'] || '').trim(),
+            companyNameEn: (r['Company Name'] || '').trim(),
+            registrationNumber: (r['เลขทะเบียน'] || '').trim(),
+            capitalText: (r['ทุนจดทะเบียน'] || '').trim(),
+            authorizedSignatory: (r['อำนาจกรรมการ'] || '').trim(),
+            headOfficeAddress: (r['ที่ตั้งสำนักงานใหญ่'] || '').trim(),
+            objectives: (r['วัตถุประสงค์'] || '').trim(),
+            directors: directors,
+            shareholders: shareholders,
+          };
+        });
+
+        try {
+          const res = await api('/companies/bulk', {
+            method: 'POST',
+            body: JSON.stringify({ companies }),
+          });
+
+          const resultEl = document.getElementById('csvResult');
+          if (res) {
+            let html = '<div class="card" style="margin-bottom:0;">';
+            html += '<strong>ผลลัพธ์: </strong> สร้างสำเร็จ ' + res.created + '/' + res.total + ' บริษัท';
+            if (res.failed > 0) html += ' <span style="color:#e74c3c;">(' + res.failed + ' ล้มเหลว)</span>';
+            html += '<div style="margin-top:8px;font-size:0.85em;max-height:150px;overflow-y:auto;">';
+            (res.results || []).forEach(function(r) {
+              const icon = r.success ? '<span style="color:#1DB446;">&#10004;</span>' : '<span style="color:#e74c3c;">&#10008;</span>';
+              html += '<div>' + icon + ' ' + escHtml(r.sheetName) + (r.error ? ' — ' + escHtml(r.error) : '') + '</div>';
+            });
+            html += '</div></div>';
+            resultEl.innerHTML = html;
+            resultEl.style.display = 'block';
+
+            if (res.created > 0) {
+              companiesData = [];
+              toast('สร้างบริษัทจาก CSV สำเร็จ ' + res.created + ' บริษัท');
+            }
+          }
+        } catch (err) {
+          toast('เกิดข้อผิดพลาดในการอัปโหลด');
+        }
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'อัปโหลด';
+      };
+      reader.readAsText(input.files[0], 'UTF-8');
     }
 
     // ===== Page loader =====

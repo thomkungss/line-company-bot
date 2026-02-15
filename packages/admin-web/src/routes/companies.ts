@@ -72,6 +72,86 @@ companiesRouter.post('/', async (req: Request, res: Response) => {
   }
 });
 
+/** Bulk create companies from CSV */
+companiesRouter.post('/bulk', async (req: Request, res: Response) => {
+  try {
+    const { companies } = req.body;
+    if (!Array.isArray(companies) || companies.length === 0) {
+      res.status(400).json({ error: 'companies array is required' });
+      return;
+    }
+
+    // Get existing sheets to check for duplicates
+    const existing = await listCompanySheets();
+    const existingSet = new Set(existing);
+    const createdSet = new Set<string>();
+
+    const results: { sheetName: string; success: boolean; error?: string }[] = [];
+    let created = 0;
+
+    for (const c of companies) {
+      const sheetName = (c.sheetName || '').trim();
+      if (!sheetName) {
+        results.push({ sheetName: sheetName || '(ว่าง)', success: false, error: 'ชื่อ Sheet ว่าง' });
+        continue;
+      }
+      if (existingSet.has(sheetName) || createdSet.has(sheetName)) {
+        results.push({ sheetName, success: false, error: 'ชื่อซ้ำ' });
+        continue;
+      }
+
+      try {
+        // 1. Create sheet + template + Drive folder
+        await createCompanySheet(sheetName);
+
+        // 2. Update general fields
+        const fields: [string, string][] = [
+          ['ชื่อบริษัท', c.companyNameTh || ''],
+          ['Company Name', c.companyNameEn || ''],
+          ['เลขทะเบียนนิติบุคคล', c.registrationNumber || ''],
+          ['ทุนจดทะเบียน', c.capitalText || ''],
+          ['อำนาจกรรมการ', c.authorizedSignatory || ''],
+          ['ที่ตั้งสำนักงานใหญ่', c.headOfficeAddress || ''],
+          ['วัตถุประสงค์', c.objectives || ''],
+        ];
+        for (const [label, value] of fields) {
+          if (value) await updateCompanyField(sheetName, label, value);
+        }
+
+        // 3. Update directors
+        if (Array.isArray(c.directors) && c.directors.length > 0) {
+          await updateDirectors(sheetName, c.directors);
+        }
+
+        // 4. Update shareholders
+        if (Array.isArray(c.shareholders) && c.shareholders.length > 0) {
+          await updateShareholders(sheetName, c.shareholders);
+        }
+
+        // 5. Log version
+        await appendVersion({
+          timestamp: thaiNow(),
+          companySheet: sheetName,
+          fieldChanged: 'สร้างบริษัทใหม่ (CSV)',
+          oldValue: '',
+          newValue: sheetName,
+          changedBy: 'admin',
+        });
+
+        createdSet.add(sheetName);
+        created++;
+        results.push({ sheetName, success: true });
+      } catch (err: any) {
+        results.push({ sheetName, success: false, error: err.message });
+      }
+    }
+
+    res.json({ total: companies.length, created, failed: companies.length - created, results });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /** Get full company data by sheet name */
 companiesRouter.get('/:sheet', async (req: Request, res: Response) => {
   try {
