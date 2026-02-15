@@ -603,7 +603,6 @@
         <div class="card">
           <div class="card-header">
             <h3>ข้อมูลทั่วไป</h3>
-            <button class="btn btn-primary btn-sm" onclick="saveGeneralInfo('${escHtml(sheet)}')">บันทึกข้อมูลทั่วไป</button>
           </div>
           <p style="color:#999;font-size:0.85em;margin-bottom:16px;">ข้อมูล ณ วันที่: ${escHtml(c.dataDate || '-')}</p>
           <div class="form-grid">
@@ -658,10 +657,7 @@
         <div class="card">
           <div class="card-header">
             <h3>กรรมการ (<span id="directorCount">${(c.directors || []).length}</span> คน)</h3>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-sm btn-secondary" onclick="addDirectorRow()">+ เพิ่มกรรมการ</button>
-              <button class="btn btn-sm btn-primary" onclick="saveDirectors('${escHtml(sheet)}')">บันทึกกรรมการ</button>
-            </div>
+            <button class="btn btn-sm btn-secondary" onclick="addDirectorRow()">+ เพิ่มกรรมการ</button>
           </div>
           <table class="dynamic-table" id="directorsTable">
             <thead><tr><th style="width:50px;">#</th><th>ชื่อ</th><th>ตำแหน่ง</th><th style="width:60px;"></th></tr></thead>
@@ -673,10 +669,7 @@
         <div class="card">
           <div class="card-header">
             <h3>ผู้ถือหุ้น (<span id="shareholderCount">${(c.shareholders || []).length}</span> คน)</h3>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-sm btn-secondary" onclick="addShareholderRow()">+ เพิ่มผู้ถือหุ้น</button>
-              <button class="btn btn-sm btn-primary" onclick="saveShareholders('${escHtml(sheet)}')">บันทึกผู้ถือหุ้น</button>
-            </div>
+            <button class="btn btn-sm btn-secondary" onclick="addShareholderRow()">+ เพิ่มผู้ถือหุ้น</button>
           </div>
           <table class="dynamic-table" id="shareholdersTable">
             <thead><tr><th style="width:50px;">#</th><th>ชื่อ</th><th style="width:120px;">จำนวนหุ้น</th><th style="width:80px;">%</th><th style="width:60px;"></th></tr></thead>
@@ -713,6 +706,11 @@
             </div>
           </div>
         </div>
+
+        <!-- Save All Button -->
+        <div style="text-align:center;margin:24px 0;">
+          <button class="btn btn-primary" style="padding:12px 48px;font-size:1em;" onclick="saveAll('${escHtml(sheet)}')">บันทึกทั้งหมด</button>
+        </div>
       `;
 
       // Populate directors table
@@ -725,8 +723,30 @@
       document.getElementById('companyDetail').style.display = 'none';
     }
 
-    // ===== Save General Info (all fields at once) =====
-    async function saveGeneralInfo(sheet) {
+    // ===== Save All (general info + directors + shareholders) =====
+    async function saveAll(sheet) {
+      toast('กำลังบันทึก...');
+      let errors = 0;
+
+      // 1. Save general info
+      try { await saveGeneralInfo(sheet, true); } catch { errors++; }
+
+      // 2. Save directors
+      try { await saveDirectors(sheet, true); } catch { errors++; }
+
+      // 3. Save shareholders
+      try { await saveShareholders(sheet, true); } catch { errors++; }
+
+      if (errors === 0) {
+        toast('บันทึกทั้งหมดสำเร็จ');
+      } else {
+        toast(`บันทึกเสร็จ แต่มี ${errors} ส่วนที่ผิดพลาด`);
+      }
+      loadCompanyDetail(sheet);
+    }
+
+    // ===== Save General Info =====
+    async function saveGeneralInfo(sheet, silent) {
       const fields = [
         { label: 'ชื่อบริษัท', id: 'field-companyNameTh' },
         { label: 'Company Name', id: 'field-companyNameEn' },
@@ -755,8 +775,11 @@
         }
       }
 
-      if (errors === 0) toast(`บันทึกสำเร็จ (${saved} fields)`);
-      else toast(`บันทึก ${saved} สำเร็จ, ${errors} ผิดพลาด`);
+      if (!silent) {
+        if (errors === 0) toast(`บันทึกสำเร็จ (${saved} fields)`);
+        else toast(`บันทึก ${saved} สำเร็จ, ${errors} ผิดพลาด`);
+      }
+      if (errors > 0) throw new Error('save failed');
     }
 
     // ===== Seal Upload =====
@@ -814,8 +837,7 @@
       updateDirectorsBody();
     }
 
-    async function saveDirectors(sheet) {
-      // Read current values from inputs
+    async function saveDirectors(sheet, silent) {
       const rows = document.querySelectorAll('#directorsBody tr');
       const directors = [];
       rows.forEach(row => {
@@ -825,17 +847,19 @@
         if (name) directors.push({ name, position: position || undefined });
       });
 
-      toast('กำลังบันทึกกรรมการ...');
       const res = await api('/companies/' + encodeURIComponent(sheet) + '/directors', {
         method: 'PUT',
         body: JSON.stringify({ directors }),
       });
-      if (res?.success) {
-        toast(`บันทึกกรรมการสำเร็จ (${res.count} คน)`);
-        loadCompanyDetail(sheet);
-      } else {
-        toast(res?.error || 'เกิดข้อผิดพลาด');
+      if (!silent) {
+        if (res?.success) {
+          toast(`บันทึกกรรมการสำเร็จ (${res.count} คน)`);
+          loadCompanyDetail(sheet);
+        } else {
+          toast(res?.error || 'เกิดข้อผิดพลาด');
+        }
       }
+      if (!res?.success) throw new Error('save directors failed');
     }
 
     // ===== Shareholders Table =====
@@ -875,7 +899,7 @@
       updateShareholdersBody();
     }
 
-    async function saveShareholders(sheet) {
+    async function saveShareholders(sheet, silent) {
       const rows = document.querySelectorAll('#shareholdersBody tr');
       const shareholders = [];
       rows.forEach((row, i) => {
@@ -886,17 +910,19 @@
         if (name) shareholders.push({ order: i + 1, name, shares, percentage: percentage || undefined });
       });
 
-      toast('กำลังบันทึกผู้ถือหุ้น...');
       const res = await api('/companies/' + encodeURIComponent(sheet) + '/shareholders', {
         method: 'PUT',
         body: JSON.stringify({ shareholders }),
       });
-      if (res?.success) {
-        toast(`บันทึกผู้ถือหุ้นสำเร็จ (${res.count} คน)`);
-        loadCompanyDetail(sheet);
-      } else {
-        toast(res?.error || 'เกิดข้อผิดพลาด');
+      if (!silent) {
+        if (res?.success) {
+          toast(`บันทึกผู้ถือหุ้นสำเร็จ (${res.count} คน)`);
+          loadCompanyDetail(sheet);
+        } else {
+          toast(res?.error || 'เกิดข้อผิดพลาด');
+        }
       }
+      if (!res?.success) throw new Error('save shareholders failed');
     }
 
     // ===== Documents =====
