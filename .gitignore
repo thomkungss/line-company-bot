@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.js.map
+*.d.ts.map
+*.tsbuildinfo
+
+# Generated JS/DTS in src (from tsc with composite)
+packages/shared/src/*.js
+packages/shared/src/*.d.ts
+packages/shared/src/*.d.ts.map
+packages/shared/src/*.js.map

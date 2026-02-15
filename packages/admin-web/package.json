@@ -1,0 +1,26 @@
+{
+  "name": "@company-bot/admin-web",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && cp -r src/frontend dist/frontend",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch & nodemon dist/index.js"
+  },
+  "dependencies": {
+    "@company-bot/shared": "*",
+    "express": "^4.21.0",
+    "googleapis": "^140.0.0",
+    "multer": "^1.4.5-lts.1",
+    "express-session": "^1.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/express-session": "^1.18.0",
+    "nodemon": "^3.1.0"
+  }
+}

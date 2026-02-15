@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายละเอียดบริษัท</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    .header { background: #1DB446; color: white; padding: 20px; }
+    .header h1 { font-size: 1.3em; }
+    .header .sub { font-size: 0.85em; opacity: 0.8; margin-top: 4px; }
+    .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+    .section { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .section h3 { color: #1DB446; font-size: 0.95em; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .field { display: flex; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+    .field:last-child { border-bottom: none; }
+    .field .label { color: #999; font-size: 0.85em; width: 120px; flex-shrink: 0; }
+    .field .value { font-size: 0.85em; color: #333; flex: 1; }
+    .table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    .table th { background: #f8f8f8; padding: 8px; text-align: left; font-weight: 600; color: #666; }
+    .table td { padding: 8px; border-bottom: 1px solid #f0f0f0; }
+    .table tr:nth-child(even) { background: #fafafa; }
+    .doc-link { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .doc-link:last-child { border-bottom: none; }
+    .doc-link .name { flex: 1; font-size: 0.9em; }
+    .doc-link a { color: #17A2B8; font-size: 0.85em; }
+    .seal-img { max-width: 200px; margin: 10px auto; display: block; }
+    .loading { text-align: center; padding: 40px; color: #999; }
+    .error { text-align: center; padding: 40px; color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="companyName">กำลังโหลด...</h1>
+    <div class="sub" id="companyNameEn"></div>
+    <div class="sub" id="dataDate"></div>
+  </div>
+  <div class="container" id="content">
+    <div class="loading">กำลังโหลดข้อมูล...</div>
+  </div>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const companyName = params.get('company') || '';
+    const apiBase = window.location.origin;
+
+    async function loadData() {
+      try {
+        const res = await fetch(`${apiBase}/api/liff/company/${encodeURIComponent(companyName)}`);
+        if (!res.ok) throw new Error('Failed to load');
+        const c = await res.json();
+
+        document.getElementById('companyName').textContent = c.companyNameTh || c.sheetName;
+        document.getElementById('companyNameEn').textContent = c.companyNameEn || '';
+        document.getElementById('dataDate').textContent = c.dataDate || '';
+
+        let html = '';
+
+        // Basic info
+        html += `<div class="section"><h3>ข้อมูลทั่วไป</h3>
+          <div class="field"><span class="label">เลขทะเบียน</span><span class="value">${c.registrationNumber || '-'}</span></div>
+          <div class="field"><span class="label">ทุนจดทะเบียน</span><span class="value">${c.capitalText || c.registeredCapital?.toLocaleString() + ' บาท' || '-'}</span></div>
+          <div class="field"><span class="label">อำนาจกรรมการ</span><span class="value">${c.authorizedSignatory || '-'}</span></div>
+          <div class="field"><span class="label">ที่อยู่</span><span class="value">${c.headOfficeAddress || '-'}</span></div>
+          <div class="field"><span class="label">วัตถุประสงค์</span><span class="value">${c.objectives || '-'}</span></div>
+        </div>`;
+
+        // Seal image
+        if (c.sealImageDriveId) {
+          html += `<div class="section"><h3>ตราประทับ</h3>
+            <img src="${apiBase}/api/seal/${c.sealImageDriveId}" alt="ตราประทับ" class="seal-img" onerror="this.style.display='none'">
+          </div>`;
+        }
+
+        // Directors
+        if (c.directors && c.directors.length) {
+          html += `<div class="section"><h3>กรรมการ (${c.directors.length} คน)</h3><table class="table">
+            <tr><th>#</th><th>ชื่อ</th><th>ตำแหน่ง</th></tr>
+            ${c.directors.map((d, i) => `<tr><td>${i+1}</td><td>${d.name}</td><td>${d.position || '-'}</td></tr>`).join('')}
+          </table></div>`;
+        }
+
+        // Shareholders
+        if (c.shareholders && c.shareholders.length) {
+          html += `<div class="section"><h3>ผู้ถือหุ้น (${c.shareholders.length} คน)</h3><table class="table">
+            <tr><th>#</th><th>ชื่อ</th><th>หุ้น</th><th>%</th></tr>
+            ${c.shareholders.map(s => `<tr><td>${s.order}</td><td>${s.name}</td><td>${s.shares?.toLocaleString()}</td><td>${s.percentage || '-'}%</td></tr>`).join('')}
+          </table></div>`;
+        }
+
+        // Documents
+        if (c.documents && c.documents.length) {
+          html += `<div class="section"><h3>เอกสาร (${c.documents.length} รายการ)</h3>
+            ${c.documents.map(d => `<div class="doc-link"><span class="name">${d.name}</span>
+              ${d.driveFileId ? `<a href="${apiBase}/api/download/${d.driveFileId}" target="_blank">ดาวน์โหลด</a>` :
+              d.driveUrl ? `<a href="${d.driveUrl}" target="_blank">เปิด</a>` : ''}
+            </div>`).join('')}
+          </div>`;
+        }
+
+        document.getElementById('content').innerHTML = html;
+      } catch (err) {
+        document.getElementById('content').innerHTML = '<div class="error">ไม่สามารถโหลดข้อมูลได้</div>';
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

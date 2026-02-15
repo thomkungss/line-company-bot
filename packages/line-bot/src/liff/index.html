@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Company Secretary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    .header { background: #1DB446; color: white; padding: 20px; text-align: center; }
+    .header h1 { font-size: 1.2em; }
+    .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h3 { color: #1DB446; margin-bottom: 8px; }
+    .card p { font-size: 0.9em; color: #666; }
+    .loading { text-align: center; padding: 40px; color: #999; }
+    a { color: #1DB446; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Company Secretary</h1>
+    <p>เลขาบริษัทอัจฉริยะ</p>
+  </div>
+  <div class="container">
+    <div id="content" class="loading">กำลังโหลด...</div>
+  </div>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    const LIFF_ID = new URLSearchParams(window.location.search).get('liffId') || '';
+    async function init() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+        document.getElementById('content').innerHTML = `
+          <div class="card">
+            <h3>ยินดีต้อนรับ</h3>
+            <p>เลือกเมนูจากแชทเพื่อดูข้อมูลบริษัท</p>
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById('content').innerHTML = '<p>เกิดข้อผิดพลาด</p>';
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

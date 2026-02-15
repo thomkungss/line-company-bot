@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Company Secretary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+
+    /* Sidebar */
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: #1a1a2e; color: white; padding: 20px 0; overflow-y: auto; }
+    .sidebar .logo { padding: 0 20px 20px; border-bottom: 1px solid #333; margin-bottom: 10px; }
+    .sidebar .logo h2 { color: #1DB446; font-size: 1.1em; }
+    .sidebar .logo p { color: #888; font-size: 0.75em; }
+    .sidebar nav a { display: flex; align-items: center; padding: 12px 20px; color: #ccc; text-decoration: none; font-size: 0.9em; transition: all 0.2s; }
+    .sidebar nav a:hover, .sidebar nav a.active { background: #16213e; color: white; border-left: 3px solid #1DB446; }
+    .sidebar nav a .icon { margin-right: 10px; font-size: 1.1em; }
+
+    /* Main */
+    .main { margin-left: 240px; padding: 20px 30px; min-height: 100vh; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .topbar h1 { font-size: 1.4em; color: #333; }
+    .topbar .actions { display: flex; gap: 10px; }
+
+    /* Cards */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .stat-card .label { color: #999; font-size: 0.8em; text-transform: uppercase; }
+    .stat-card .value { font-size: 1.8em; font-weight: 700; color: #333; margin-top: 4px; }
+    .stat-card .sub { color: #1DB446; font-size: 0.85em; margin-top: 2px; }
+
+    /* Table */
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .card h3 { color: #333; margin-bottom: 16px; font-size: 1.1em; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    th { background: #f8f9fa; padding: 10px 12px; text-align: left; color: #666; font-weight: 600; border-bottom: 2px solid #eee; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:hover td { background: #f8fdf9; }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 500; transition: all 0.2s; }
+    .btn-primary { background: #1DB446; color: white; }
+    .btn-primary:hover { background: #17a03d; }
+    .btn-secondary { background: #e9ecef; color: #333; }
+    .btn-secondary:hover { background: #dee2e6; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-sm { padding: 5px 10px; font-size: 0.8em; }
+
+    /* Forms */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.85em; color: #666; margin-bottom: 4px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9em; outline: none; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1DB446; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 16px; }
+
+    /* Badge */
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; font-weight: 600; }
+    .badge-green { background: #d4edda; color: #155724; }
+    .badge-blue { background: #d1ecf1; color: #0c5460; }
+    .badge-yellow { background: #fff3cd; color: #856404; }
+
+    /* Page sections */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Timeline */
+    .timeline-item { padding: 12px 0; border-left: 3px solid #1DB446; padding-left: 16px; margin-left: 8px; margin-bottom: 8px; }
+    .timeline-item .field { font-weight: 600; color: #1DB446; }
+    .timeline-item .date { font-size: 0.8em; color: #999; }
+    .timeline-item .diff { margin-top: 6px; font-size: 0.85em; }
+    .timeline-item .old { color: #e74c3c; }
+    .timeline-item .new { color: #27ae60; }
+
+    /* Checkbox grid */
+    .perm-grid { overflow-x: auto; }
+    .perm-grid table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: #999; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 200; display: none; font-size: 0.9em; }
+    .toast.show { display: block; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Chat log */
+    .chat-bubble { padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; font-size: 0.85em; }
+    .chat-bubble.user { background: #1DB446; color: white; margin-left: auto; }
+    .chat-bubble.assistant { background: #e9ecef; color: #333; }
+    .chat-meta { font-size: 0.75em; color: #999; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <h2>Company Secretary</h2>
+      <p>Admin Dashboard</p>
+    </div>
+    <nav>
+      <a href="#" data-page="dashboard" class="active"><span class="icon">&#9632;</span> Dashboard</a>
+      <a href="#" data-page="companies"><span class="icon">&#9670;</span> บริษัท</a>
+      <a href="#" data-page="versions"><span class="icon">&#9200;</span> ประวัติเปลี่ยนแปลง</a>
+      <a href="#" data-page="permissions"><span class="icon">&#128274;</span> จัดการสิทธิ์</a>
+      <a href="#" data-page="chatlog"><span class="icon">&#128172;</span> Chat Log</a>
+      <a href="#" id="logoutBtn"><span class="icon">&#10140;</span> ออกจากระบบ</a>
+    </nav>
+  </div>
+
+  <div class="main">
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="page active">
+      <div class="topbar">
+        <h1>Dashboard</h1>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="triggerSync()">Sync Data</button>
+        </div>
+      </div>
+      <div class="stats" id="dashStats">
+        <div class="stat-card"><div class="label">บริษัททั้งหมด</div><div class="value" id="statCompanies">-</div></div>
+        <div class="stat-card"><div class="label">กรรมการทั้งหมด</div><div class="value" id="statDirectors">-</div></div>
+        <div class="stat-card"><div class="label">ผู้ถือหุ้นทั้งหมด</div><div class="value" id="statShareholders">-</div></div>
+        <div class="stat-card"><div class="label">เอกสารทั้งหมด</div><div class="value" id="statDocuments">-</div></div>
+      </div>
+      <div class="card">
+        <h3>ภาพรวมบริษัท</h3>
+        <table>
+          <thead><tr><th>บริษัท</th><th>ชื่อภาษาอังกฤษ</th><th>เลขทะเบียน</th><th>ทุน</th><th>กรรมการ</th><th>ผู้ถือหุ้น</th></tr></thead>
+          <tbody id="dashTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Companies -->
+    <div id="page-companies" class="page">
+      <div class="topbar"><h1>บริษัท</h1></div>
+      <div id="companyList"></div>
+      <div id="companyDetail" style="display:none;"></div>
+    </div>
+
+    <!-- Versions -->
+    <div id="page-versions" class="page">
+      <div class="topbar"><h1>ประวัติเปลี่ยนแปลง</h1></div>
+      <div class="card" id="versionList"><div class="loading">กำลังโหลด...</div></div>
+    </div>
+
+    <!-- Permissions -->
+    <div id="page-permissions" class="page">
+      <div class="topbar">
+        <h1>จัดการสิทธิ์ผู้ใช้</h1>
+        <div class="actions"><button class="btn btn-primary" onclick="savePermissions()">บันทึกสิทธิ์</button></div>
+      </div>
+      <div class="card perm-grid" id="permGrid"><div class="loading">กำลังโหลด...</div></div>
+    </div>
+
+    <!-- Chat Log -->
+    <div id="page-chatlog" class="page">
+      <div class="topbar"><h1>Chat Log</h1></div>
+      <div class="card" id="chatLogList"><div class="loading">กำลังโหลด...</div></div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <h3 id="editModalTitle">แก้ไขข้อมูล</h3>
+      <form id="editForm">
+        <div class="form-group">
+          <label id="editFieldLabel">Field</label>
+          <textarea id="editFieldValue" rows="3"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ===== Navigation =====
+    document.querySelectorAll('[data-page]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const page = a.dataset.page;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('[data-page]').forEach(n => n.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        a.classList.add('active');
+        loadPage(page);
+      });
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login';
+    });
+
+    // ===== API helpers =====
+    async function api(path, opts = {}) {
+      const res = await fetch('/api' + path, {
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        ...opts,
+      });
+      if (res.status === 401) { window.location.href = '/login'; return null; }
+      return res.json();
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function fmt(n) { return n ? n.toLocaleString('th-TH') : '-'; }
+
+    // ===== Dashboard =====
+    let companiesData = [];
+
+    async function loadDashboard() {
+      companiesData = await api('/companies') || [];
+      document.getElementById('statCompanies').textContent = companiesData.length;
+      document.getElementById('statDirectors').textContent = companiesData.reduce((s, c) => s + (c.directorCount || 0), 0);
+      document.getElementById('statShareholders').textContent = companiesData.reduce((s, c) => s + (c.shareholderCount || 0), 0);
+      document.getElementById('statDocuments').textContent = companiesData.reduce((s, c) => s + (c.documentCount || 0), 0);
+
+      document.getElementById('dashTable').innerHTML = companiesData.map(c => `
+        <tr>
+          <td><strong>${c.companyNameTh || c.sheetName}</strong></td>
+          <td>${c.companyNameEn || '-'}</td>
+          <td>${c.registrationNumber || '-'}</td>
+          <td>${fmt(c.registeredCapital)}</td>
+          <td>${c.directorCount || 0}</td>
+          <td>${c.shareholderCount || 0}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function triggerSync() {
+      toast('กำลัง sync...');
+      const res = await api('/sync', { method: 'POST' });
+      if (res) {
+        toast(`Sync สำเร็จ: ${res.synced} บริษัท`);
+        loadDashboard();
+      }
+    }
+
+    // ===== Companies =====
+    async function loadCompanies() {
+      if (!companiesData.length) companiesData = await api('/companies') || [];
+      const el = document.getElementById('companyList');
+      el.innerHTML = companiesData.map(c => `
+        <div class="card" style="cursor:pointer;" onclick="loadCompanyDetail('${c.sheetName}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <strong>${c.companyNameTh || c.sheetName}</strong>
+              <span style="color:#999;font-size:0.85em;margin-left:8px;">${c.companyNameEn || ''}</span>
+            </div>
+            <span class="badge badge-green">${c.registrationNumber || '-'}</span>
+          </div>
+          <div style="margin-top:8px;font-size:0.85em;color:#666;">
+            ทุน: ${fmt(c.registeredCapital)} | กรรมการ: ${c.directorCount || 0} คน | ผู้ถือหุ้น: ${c.shareholderCount || 0} คน | เอกสาร: ${c.documentCount || 0}
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('companyDetail').style.display = 'none';
+    }
+
+    async function loadCompanyDetail(sheet) {
+      const c = await api('/companies/' + encodeURIComponent(sheet));
+      if (!c) return;
+      document.getElementById('companyList').style.display = 'none';
+      const el = document.getElementById('companyDetail');
+      el.style.display = 'block';
+
+      const fields = [
+        ['ชื่อบริษัท', c.companyNameTh],
+        ['Company Name', c.companyNameEn],
+        ['เลขทะเบียนนิติบุคคล', c.registrationNumber],
+        ['อำนาจกรรมการ', c.authorizedSignatory],
+        ['ทุนจดทะเบียน', c.capitalText || String(c.registeredCapital)],
+        ['ที่ตั้งสำนักงานใหญ่', c.headOfficeAddress],
+        ['วัตถุประสงค์', c.objectives],
+      ];
+
+      el.innerHTML = `
+        <button class="btn btn-secondary" onclick="document.getElementById('companyList').style.display='block';document.getElementById('companyDetail').style.display='none';" style="margin-bottom:16px;">&larr; กลับ</button>
+        <div class="card">
+          <h3>${c.companyNameTh} <span style="color:#999;font-weight:normal;font-size:0.8em;">${c.companyNameEn || ''}</span></h3>
+          <p style="color:#999;font-size:0.85em;margin-bottom:16px;">${c.dataDate || ''}</p>
+          <table>
+            <thead><tr><th>รายการ</th><th>ข้อมูล</th><th></th></tr></thead>
+            <tbody>
+              ${fields.map(([label, value]) => `
+                <tr>
+                  <td style="width:180px;color:#666;">${label}</td>
+                  <td>${value || '-'}</td>
+                  <td><button class="btn btn-sm btn-secondary" onclick="openEdit('${sheet}','${label}','${(value||'').replace(/'/g, "\\'")}')">แก้ไข</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>กรรมการ (${c.directors?.length || 0} คน)</h3>
+          <table>
+            <thead><tr><th>#</th><th>ชื่อ</th><th>ตำแหน่ง</th></tr></thead>
+            <tbody>
+              ${(c.directors || []).map((d, i) => `<tr><td>${i+1}</td><td>${d.name}</td><td>${d.position || '-'}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>ผู้ถือหุ้น (${c.shareholders?.length || 0} คน)</h3>
+          <table>
+            <thead><tr><th>#</th><th>ชื่อ</th><th>หุ้น</th><th>%</th></tr></thead>
+            <tbody>
+              ${(c.shareholders || []).map(s => `<tr><td>${s.order}</td><td>${s.name}</td><td>${fmt(s.shares)}</td><td>${s.percentage || '-'}%</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>เอกสาร (${c.documents?.length || 0} รายการ)</h3>
+          <div style="margin-bottom:12px;">
+            <input type="file" id="uploadFile" style="font-size:0.85em;">
+            <button class="btn btn-sm btn-primary" onclick="uploadDoc('${sheet}')">อัปโหลด</button>
+          </div>
+          <table>
+            <thead><tr><th>ชื่อเอกสาร</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${(c.documents || []).map(d => `
+                <tr>
+                  <td>${d.name}</td>
+                  <td>
+                    ${d.driveFileId ? `<a href="/api/documents/download/${d.driveFileId}" class="btn btn-sm btn-secondary" target="_blank">ดาวน์โหลด</a>` : ''}
+                    ${d.driveFileId ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${d.driveFileId}','${sheet}')">ลบ</button>` : ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // ===== Edit field =====
+    let editCtx = {};
+    function openEdit(sheet, label, currentVal) {
+      editCtx = { sheet, label };
+      document.getElementById('editModalTitle').textContent = 'แก้ไข: ' + label;
+      document.getElementById('editFieldLabel').textContent = label;
+      document.getElementById('editFieldValue').value = currentVal;
+      document.getElementById('editModal').classList.add('show');
+    }
+    function closeModal() { document.getElementById('editModal').classList.remove('show'); }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const value = document.getElementById('editFieldValue').value;
+      const res = await api('/companies/' + encodeURIComponent(editCtx.sheet), {
+        method: 'PUT',
+        body: JSON.stringify({ label: editCtx.label, value }),
+      });
+      if (res?.success) {
+        toast('บันทึกสำเร็จ');
+        closeModal();
+        loadCompanyDetail(editCtx.sheet);
+      } else {
+        toast('เกิดข้อผิดพลาด');
+      }
+    });
+
+    // ===== Upload/Delete doc =====
+    async function uploadDoc(sheet) {
+      const input = document.getElementById('uploadFile');
+      if (!input.files.length) { toast('เลือกไฟล์ก่อน'); return; }
+      const form = new FormData();
+      form.append('file', input.files[0]);
+      const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success) { toast('อัปโหลดสำเร็จ'); loadCompanyDetail(sheet); }
+      else toast('เกิดข้อผิดพลาด');
+    }
+
+    async function deleteDoc(fileId, sheet) {
+      if (!confirm('ต้องการลบเอกสารนี้?')) return;
+      const res = await api('/documents/' + fileId, { method: 'DELETE' });
+      if (res?.success) { toast('ลบสำเร็จ'); loadCompanyDetail(sheet); }
+    }
+
+    // ===== Versions =====
+    async function loadVersions() {
+      const versions = await api('/versions') || [];
+      const el = document.getElementById('versionList');
+      if (!versions.length) { el.innerHTML = '<p style="color:#999;">ไม่พบประวัติการเปลี่ยนแปลง</p>'; return; }
+      el.innerHTML = versions.slice(0, 50).map(v => `
+        <div class="timeline-item">
+          <div style="display:flex;justify-content:space-between;">
+            <span class="field">${v.fieldChanged} <span class="badge badge-blue">${v.companySheet}</span></span>
+            <span class="date">${v.timestamp}</span>
+          </div>
+          <div class="diff">
+            <div class="old">เดิม: ${v.oldValue || '-'}</div>
+            <div class="new">ใหม่: ${v.newValue || '-'}</div>
+          </div>
+          <div class="date" style="margin-top:4px;">โดย: ${v.changedBy || '-'}</div>
+        </div>
+      `).join('');
+    }
+
+    // ===== Permissions =====
+    let permData = null;
+    async function loadPermissions() {
+      permData = await api('/permissions');
+      if (!permData) return;
+      const { permissions, companySheets } = permData;
+      const el = document.getElementById('permGrid');
+
+      el.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>LINE User ID</th><th>ชื่อ</th><th>Role</th>
+              ${companySheets.map(s => `<th style="text-align:center;">${s}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${permissions.map((p, i) => `
+              <tr>
+                <td><input type="text" value="${p.lineUserId}" data-row="${i}" data-field="lineUserId" style="width:120px;padding:4px;font-size:0.8em;"></td>
+                <td><input type="text" value="${p.displayName}" data-row="${i}" data-field="displayName" style="width:80px;padding:4px;font-size:0.8em;"></td>
+                <td>
+                  <select data-row="${i}" data-field="role" style="padding:4px;font-size:0.8em;">
+                    <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>viewer</option>
+                    <option value="admin" ${p.role === 'admin' ? 'selected' : ''}>admin</option>
+                  </select>
+                </td>
+                ${companySheets.map(s => `
+                  <td style="text-align:center;">
+                    <input type="checkbox" data-row="${i}" data-company="${s}" ${p.companies?.[s] ? 'checked' : ''}>
+                  </td>
+                `).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <button class="btn btn-secondary" onclick="addPermRow()" style="margin-top:12px;">+ เพิ่มผู้ใช้</button>
+      `;
+    }
+
+    function addPermRow() {
+      if (!permData) return;
+      permData.permissions.push({ lineUserId: '', displayName: '', role: 'viewer', companies: {} });
+      loadPermissions();
+    }
+
+    async function savePermissions() {
+      if (!permData) return;
+      const rows = permData.permissions;
+      document.querySelectorAll('[data-row][data-field]').forEach(el => {
+        const i = Number(el.dataset.row);
+        const field = el.dataset.field;
+        rows[i][field] = el.value || el.tagName === 'SELECT' ? el.value : el.value;
+      });
+      document.querySelectorAll('[data-row][data-company]').forEach(el => {
+        const i = Number(el.dataset.row);
+        const company = el.dataset.company;
+        if (!rows[i].companies) rows[i].companies = {};
+        rows[i].companies[company] = el.checked;
+      });
+
+      const valid = rows.filter(r => r.lineUserId);
+      const res = await api('/permissions', { method: 'PUT', body: JSON.stringify({ permissions: valid }) });
+      if (res?.success) toast('บันทึกสิทธิ์สำเร็จ');
+      else toast('เกิดข้อผิดพลาด');
+    }
+
+    // ===== Chat Log =====
+    async function loadChatLog() {
+      const logs = await api('/chat-logs') || [];
+      const el = document.getElementById('chatLogList');
+      if (!logs.length) { el.innerHTML = '<p style="color:#999;">ไม่พบประวัติ chat</p>'; return; }
+
+      el.innerHTML = logs.map(l => `
+        <div style="margin-bottom:8px;">
+          <div class="chat-meta">${l.timestamp} | ${l.userId} | ${l.companyContext || '-'}</div>
+          <div class="chat-bubble ${l.role}">${l.message}</div>
+        </div>
+      `).join('');
+    }
+
+    // ===== Page loader =====
+    function loadPage(page) {
+      switch(page) {
+        case 'dashboard': loadDashboard(); break;
+        case 'companies': loadCompanies(); break;
+        case 'versions': loadVersions(); break;
+        case 'permissions': loadPermissions(); break;
+        case 'chatlog': loadChatLog(); break;
+      }
+    }
+
+    // Initial load
+    loadDashboard();
+  </script>
+</body>
+</html>
