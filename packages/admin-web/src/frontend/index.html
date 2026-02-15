@@ -434,9 +434,10 @@
         </div>`;
 
       // Seal
-      if (c.sealImageDriveId) {
+      const viewSealSrc = c.sealImageUrl || (c.sealImageDriveId ? '/api/documents/download/' + escHtml(c.sealImageDriveId) : '');
+      if (viewSealSrc) {
         html += `<div class="view-section"><h3>ตราประทับ</h3>
-          <img src="/api/documents/download/${escHtml(c.sealImageDriveId)}" alt="ตราประทับ" class="view-seal" onerror="this.style.display='none'">
+          <img src="${viewSealSrc}" alt="ตราประทับ" class="view-seal" onerror="this.style.display='none'">
         </div>`;
       }
 
@@ -643,9 +644,10 @@
             <h3>ตราประทับ</h3>
           </div>
           <div id="sealSection">
-            ${c.sealImageDriveId
-              ? `<img src="/api/documents/download/${escHtml(c.sealImageDriveId)}" class="seal-preview" onerror="this.style.display='none'">`
-              : '<p style="color:#999;font-size:0.85em;">ยังไม่มีตราประทับ</p>'}
+            ${(function(){
+              const src = c.sealImageUrl || (c.sealImageDriveId ? '/api/documents/download/' + c.sealImageDriveId : '');
+              return src ? '<img src="' + escHtml(src) + '" class="seal-preview" onerror="this.style.display=\'none\'">' : '<p style="color:#999;font-size:0.85em;">ยังไม่มีตราประทับ</p>';
+            })()}
             <div style="margin-top:8px;">
               <input type="file" id="sealUploadFile" accept="image/*" style="font-size:0.85em;">
               <button class="btn btn-sm btn-primary" onclick="uploadSeal('${escHtml(sheet)}')">อัปโหลดตราประทับ</button>

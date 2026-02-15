@@ -42,6 +42,7 @@ export interface Company {
   headOfficeAddress: string;
   objectives: string;
   sealImageDriveId: string;
+  sealImageUrl: string; // full URL (for non-Drive hosted images)
   shareholders: Shareholder[];
   documents: CompanyDocument[];
 }

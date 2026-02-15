@@ -66,9 +66,10 @@ app.post('/api/logout', (_req, res) => {
   res.json({ success: true });
 });
 
-// Static frontend (login page accessible without auth)
+// Public routes (no auth required)
 app.use('/login', express.static(path.join(__dirname, 'frontend', 'login.html')));
 app.use('/assets', express.static(path.join(__dirname, 'frontend', 'assets')));
+app.use('/api/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Auth gate for everything else
 app.use(requireAuth);

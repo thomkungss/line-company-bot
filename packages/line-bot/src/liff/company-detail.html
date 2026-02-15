@@ -97,9 +97,10 @@
         </div>`;
 
         // Seal image
-        if (c.sealImageDriveId) {
+        const sealSrc = c.sealImageUrl || (c.sealImageDriveId ? `${apiBase}/api/seal/${c.sealImageDriveId}` : '');
+        if (sealSrc) {
           html += `<div class="section"><h3>ตราประทับ</h3>
-            <img src="${apiBase}/api/seal/${c.sealImageDriveId}" alt="ตราประทับ" class="seal-img" onerror="this.style.display='none'">
+            <img src="${sealSrc}" alt="ตราประทับ" class="seal-img" onerror="this.style.display='none'">
           </div>`;
         }
 

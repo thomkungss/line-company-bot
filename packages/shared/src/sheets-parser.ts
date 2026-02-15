@@ -78,9 +78,11 @@ function parseRows(sheetName: string, rows: SheetRow[]): Company {
   // Objectives
   const objectives = findValue(rows, 'วัตถุประสงค์');
 
-  // Seal image
+  // Seal image — can be a Drive file ID/URL or a full external URL
   const sealRaw = findValue(rows, 'ตราประทับ');
-  const sealImageDriveId = extractDriveFileId(sealRaw);
+  const isExternalUrl = sealRaw.startsWith('http') && !sealRaw.includes('drive.google.com');
+  const sealImageDriveId = isExternalUrl ? '' : extractDriveFileId(sealRaw);
+  const sealImageUrl = isExternalUrl ? sealRaw : '';
 
   // Shareholders
   const shareholders = parseShareholders(rows);
@@ -103,6 +105,7 @@ function parseRows(sheetName: string, rows: SheetRow[]): Company {
     headOfficeAddress,
     objectives,
     sealImageDriveId,
+    sealImageUrl,
     shareholders,
     documents,
   };
@@ -423,7 +426,7 @@ export async function updateCompanyField(
 
 // ===== Update seal image Drive ID in sheet =====
 
-export async function updateSealInSheet(sheetName: string, driveFileId: string): Promise<boolean> {
+export async function updateSealInSheet(sheetName: string, urlOrId: string): Promise<boolean> {
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
@@ -433,12 +436,13 @@ export async function updateSealInSheet(sheetName: string, driveFileId: string):
   const idx = findRowIndex(rows, 'ตราประทับ');
   if (idx < 0) return false;
 
-  const driveUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
+  // Store the value as-is (can be a full URL or a Drive file ID)
+  const value = urlOrId.startsWith('http') ? urlOrId : `https://drive.google.com/file/d/${urlOrId}/view`;
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
     range: `'${sheetName}'!B${idx + 1}`,
     valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [[driveUrl]] },
+    requestBody: { values: [[value]] },
   });
   return true;
 }

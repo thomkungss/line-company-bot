@@ -1,46 +1,17 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet } from '@company-bot/shared';
+import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs';
+import { getDriveClient, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet } from '@company-bot/shared';
 import { Readable } from 'stream';
+import { config } from '../config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-// Cache company folder IDs to avoid repeated lookups
-const companyFolderCache = new Map<string, string>();
-
-/** Find or create a subfolder for the company inside the root Drive folder */
-async function getOrCreateCompanyFolder(drive: any, rootFolderId: string, companyName: string): Promise<string> {
-  // Check cache first
-  const cached = companyFolderCache.get(companyName);
-  if (cached) return cached;
-
-  // Search for existing folder
-  const searchRes = await drive.files.list({
-    q: `name='${companyName.replace(/'/g, "\\'")}' and '${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id,name)',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  });
-  const existing = searchRes.data.files;
-  if (existing && existing.length > 0) {
-    companyFolderCache.set(companyName, existing[0].id);
-    return existing[0].id;
-  }
-
-  // Create new folder
-  const folderRes = await drive.files.create({
-    requestBody: {
-      name: companyName,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [rootFolderId],
-    },
-    fields: 'id',
-    supportsAllDrives: true,
-  });
-  const folderId = folderRes.data.id;
-  companyFolderCache.set(companyName, folderId);
-  return folderId;
-}
+// Local file storage directory
+const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 export const documentsRouter = Router();
 
@@ -55,7 +26,7 @@ documentsRouter.get('/:sheet', async (req: Request, res: Response) => {
   }
 });
 
-/** Upload document to Google Drive + auto update Sheet */
+/** Upload document — stored locally on server */
 documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -63,62 +34,40 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       return;
     }
 
-    const drive = getDriveClient();
-    const rootFolderId = getDriveFolderId();
     const sheet: string = req.params.sheet as string;
     const documentName: string = (req.body.documentName || '').toString().trim();
 
-    // Get or create company subfolder
-    const companyFolderId = rootFolderId
-      ? await getOrCreateCompanyFolder(drive, rootFolderId, sheet)
-      : undefined;
+    // Generate unique filename
+    const ext = path.extname(req.file.originalname) || '';
+    const uuid = crypto.randomUUID();
+    const fileName = `${uuid}${ext}`;
 
-    // Name file: "ชื่อเอกสาร.ext" inside company folder
-    const ext = req.file.originalname.includes('.') ? req.file.originalname.substring(req.file.originalname.lastIndexOf('.')) : '';
-    const baseName = documentName || req.file.originalname.replace(/\.[^.]+$/, '');
-    const driveName = `${baseName}${ext}`;
+    // Save file locally
+    const filePath = path.join(UPLOAD_DIR, fileName);
+    fs.writeFileSync(filePath, req.file.buffer);
 
-    const fileMetadata = {
-      name: driveName,
-      parents: companyFolderId ? [companyFolderId] : undefined,
-      description: `Document for ${sheet}`,
-    };
+    // Build public URL
+    const fileUrl = `${config.baseUrl}/api/uploads/${fileName}`;
 
-    const media = {
-      mimeType: req.file.mimetype,
-      body: Readable.from(req.file.buffer),
-    };
-
-    const driveRes = await drive.files.create({
-      requestBody: fileMetadata,
-      media,
-      fields: 'id,name,webViewLink',
-      supportsAllDrives: true,
-    });
-
-    const fileId = (driveRes as any).data.id;
-    const webViewLink = (driveRes as any).data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
-
-    // Auto update Google Sheet
+    // Update Google Sheet
     let sheetUpdated = false;
     if (documentName === 'ตราประทับ') {
-      // Seal image — update sealImageDriveId in sheet
-      sheetUpdated = await updateSealInSheet(sheet, fileId);
+      // Seal — store full URL in sheet
+      sheetUpdated = await updateSealInSheet(sheet, fileUrl);
     } else if (documentName) {
-      const updated = await updateDocumentInSheet(sheet, documentName, webViewLink);
+      const updated = await updateDocumentInSheet(sheet, documentName, fileUrl);
       if (updated) {
         sheetUpdated = true;
       } else {
-        await addDocumentToSheet(sheet, documentName, webViewLink);
+        await addDocumentToSheet(sheet, documentName, fileUrl);
         sheetUpdated = true;
       }
     }
 
     res.json({
       success: true,
-      fileId,
-      name: (driveRes as any).data.name,
-      webViewLink,
+      fileUrl,
+      name: documentName || req.file.originalname,
       sheetUpdated,
     });
   } catch (err: any) {
@@ -127,7 +76,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
   }
 });
 
-/** Delete document from Google Drive */
+/** Delete document from Google Drive (for existing Drive files) */
 documentsRouter.delete('/:fileId', async (req: Request, res: Response) => {
   try {
     const drive = getDriveClient();
@@ -139,7 +88,7 @@ documentsRouter.delete('/:fileId', async (req: Request, res: Response) => {
   }
 });
 
-/** Proxy download */
+/** Proxy download from Google Drive (for existing Drive files) */
 documentsRouter.get('/download/:fileId', async (req: Request, res: Response) => {
   try {
     const drive = getDriveClient();

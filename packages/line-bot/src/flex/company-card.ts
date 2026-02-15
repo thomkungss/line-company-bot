@@ -194,9 +194,11 @@ export function buildCompanySelectionCarousel(companies: Company[], opts: CardOp
 
 /** Build detailed company Flex Message */
 export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {}): FlexMessage {
-  const sealUrl = company.sealImageDriveId
-    ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
-    : undefined;
+  const sealUrl = company.sealImageUrl
+    ? company.sealImageUrl
+    : company.sealImageDriveId
+      ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
+      : undefined;
 
   const bodyContents: any[] = [
     // Registration number
