@@ -1591,7 +1591,7 @@
       var companyStartX = Math.max(40, (canvasW - companyIdxArr.length * companySpacing) / 2);
 
       canvas.style.minWidth = canvasW + 'px';
-      canvas.style.minHeight = canvasH + 'px';
+      canvas.style.minHeight = Math.max(canvasH, window.innerHeight - 120) + 'px';
 
       // Assign default positions
       var nodePos = {}; // id -> {x, y}
@@ -1699,7 +1699,7 @@
       var personStartX = Math.max(40, (canvasW - personNames.length * personSpacing) / 2);
 
       canvas.style.minWidth = canvasW + 'px';
-      canvas.style.minHeight = canvasH + 'px';
+      canvas.style.minHeight = Math.max(canvasH, window.innerHeight - 120) + 'px';
 
       var nodePos = {};
       visibleCompanyIdxs.forEach(function(ci, i) {
