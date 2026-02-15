@@ -52,8 +52,10 @@ export interface Company {
 export interface UserPermission {
   lineUserId: string;
   displayName: string;
-  role: 'admin' | 'viewer';
+  role: 'super_admin' | 'admin' | 'viewer';
   canViewDocuments: boolean;
+  approved?: boolean;
+  pictureUrl?: string;
   companies: Record<string, boolean>; // sheetName → hasAccess
 }
 

@@ -1,5 +1,5 @@
 import { Client, PostbackEvent } from '@line/bot-sdk';
-import { getUserPermission, parseCompanySheet, getVersionHistory } from '@company-bot/shared';
+import { getUserPermission, getPermissions, updatePermissions, parseCompanySheet, getVersionHistory } from '@company-bot/shared';
 import { buildCompanyDetailFlex } from '../flex/company-card';
 import { buildDocumentList } from '../flex/document-list';
 import { buildVersionDiff } from '../flex/version-diff';
@@ -10,6 +10,7 @@ interface PostbackData {
   action: string;
   company?: string;
   fileId?: string;
+  userId?: string;
 }
 
 function parsePostbackData(data: string): PostbackData {
@@ -18,6 +19,7 @@ function parsePostbackData(data: string): PostbackData {
     action: params.get('action') || '',
     company: params.get('company') || undefined,
     fileId: params.get('fileId') || undefined,
+    userId: params.get('userId') || undefined,
   };
 }
 
@@ -100,6 +102,90 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
       await client.replyMessage(event.replyToken, {
         type: 'text',
         text: `ดาวน์โหลดเอกสาร: ${downloadUrl}`,
+      });
+      break;
+    }
+
+    case 'approve_user': {
+      if (!pb.userId) return;
+      // Only super_admin can approve
+      if (perm.role !== 'super_admin') {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'เฉพาะ super_admin เท่านั้นที่สามารถอนุมัติผู้ใช้ได้',
+        });
+        return;
+      }
+      const allPerms = await getPermissions();
+      const targetPerm = allPerms.find(p => p.lineUserId === pb.userId);
+      if (!targetPerm) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ไม่พบผู้ใช้นี้ในระบบ',
+        });
+        return;
+      }
+      if (targetPerm.approved) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: `ผู้ใช้ ${targetPerm.displayName} ได้รับอนุมัติไปแล้ว`,
+        });
+        return;
+      }
+      // Update approved to true
+      targetPerm.approved = true;
+      await updatePermissions(allPerms);
+      // Notify the approved user
+      try {
+        await client.pushMessage(pb.userId, {
+          type: 'text',
+          text: 'คุณได้รับอนุมัติให้ใช้งานระบบแล้ว! ส่งข้อความมาเพื่อเริ่มใช้งาน',
+        });
+      } catch (err) {
+        console.error('Failed to push approval notification:', err);
+      }
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `อนุมัติผู้ใช้ ${targetPerm.displayName} เรียบร้อยแล้ว`,
+      });
+      break;
+    }
+
+    case 'reject_user': {
+      if (!pb.userId) return;
+      // Only super_admin can reject
+      if (perm.role !== 'super_admin') {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'เฉพาะ super_admin เท่านั้นที่สามารถปฏิเสธผู้ใช้ได้',
+        });
+        return;
+      }
+      const allPermsForReject = await getPermissions();
+      const targetIdx = allPermsForReject.findIndex(p => p.lineUserId === pb.userId);
+      if (targetIdx < 0) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ไม่พบผู้ใช้นี้ในระบบ',
+        });
+        return;
+      }
+      const rejectedUser = allPermsForReject[targetIdx];
+      // Remove user from permissions
+      allPermsForReject.splice(targetIdx, 1);
+      await updatePermissions(allPermsForReject);
+      // Notify the rejected user
+      try {
+        await client.pushMessage(pb.userId!, {
+          type: 'text',
+          text: 'การสมัครใช้งานของคุณถูกปฏิเสธ หากต้องการสมัครใหม่กรุณาส่งข้อความมา',
+        });
+      } catch (err) {
+        console.error('Failed to push rejection notification:', err);
+      }
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `ปฏิเสธผู้ใช้ ${rejectedUser.displayName} เรียบร้อยแล้ว`,
       });
       break;
     }

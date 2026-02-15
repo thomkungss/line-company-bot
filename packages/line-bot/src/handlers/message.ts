@@ -2,7 +2,9 @@ import { Client, MessageEvent, TextMessage, FlexMessage } from '@line/bot-sdk';
 import { getAccessibleCompanies, getUserPermission, parseCompanySheet } from '@company-bot/shared';
 import { handleCommand } from './command';
 import { buildCompanyDetailFlex } from '../flex/company-card';
+import { buildRegistrationPrompt, buildPendingApproval } from '../flex/registration';
 import { handleAIChat } from '../services/claude';
+import { config } from '../config';
 
 export async function handleMessage(client: Client, event: MessageEvent): Promise<void> {
   if (event.message.type !== 'text') return;
@@ -17,10 +19,14 @@ export async function handleMessage(client: Client, event: MessageEvent): Promis
   const perm = await getUserPermission(userId);
   console.log(`Permission check for ${userId}:`, JSON.stringify(perm));
   if (!perm) {
-    await client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูล กรุณาติดต่อผู้ดูแลระบบ',
-    });
+    // User not registered — show registration prompt
+    await client.replyMessage(event.replyToken, buildRegistrationPrompt(config.liffId));
+    return;
+  }
+
+  // User registered but not yet approved
+  if (perm.approved === false) {
+    await client.replyMessage(event.replyToken, buildPendingApproval());
     return;
   }
 

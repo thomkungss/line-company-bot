@@ -116,9 +116,9 @@ function parseDirectors(rows: SheetRow[]): Director[] {
   const startIdx = findRowIndex(rows, 'กรรมการ');
   if (startIdx < 0) return directors;
 
-  // First director might be on the same row
+  // First director might be on the same row — skip count text like "3 คน"
   const firstVal = (rows[startIdx][1] || '').toString().trim();
-  if (firstVal && !firstVal.match(/^\d+$/)) {
+  if (firstVal && !firstVal.match(/^\d+(\s*คน)?$/)) {
     directors.push({ name: firstVal, position: (rows[startIdx][2] || '').toString().trim() || undefined });
   }
 
@@ -173,9 +173,12 @@ function parseShareholders(rows: SheetRow[]): Shareholder[] {
       if (looksLikeHeader) break;
     }
 
+    // Skip header row (ลำดับ | ชื่อผู้ถือหุ้น | % | จำนวนหุ้น)
+    if (labelCell && labelCell.includes('ลำดับ')) continue;
+
     // Try to find name
     const nameCell = (rows[i][1] || rows[i][0] || '').toString().trim();
-    if (!nameCell || nameCell === '-' || nameCell === 'ลำดับ' || nameCell === 'ชื่อ') continue;
+    if (!nameCell || nameCell === '-' || nameCell === 'ลำดับ' || nameCell === 'ชื่อ' || nameCell === 'ชื่อผู้ถือหุ้น') continue;
 
     // Scan all columns for percentage (%) and shares (หุ้น or large number)
     let percentage = 0;
@@ -260,24 +263,36 @@ export async function getPermissions(): Promise<UserPermission[]> {
     if (rows.length < 2) return [];
 
     const headers = rows[0].map((h: string) => h.toString().trim());
-    // Headers: LINE User ID | ชื่อ | Role | ดูเอกสาร | company1 | company2 | ...
+    // Headers: LINE User ID | ชื่อ | Role | ดูเอกสาร | approved | pictureUrl | company1 | company2 | ...
     // Support old format without ดูเอกสาร column
     const hasDocCol = headers[3] === 'ดูเอกสาร';
-    const companyStartIdx = hasDocCol ? 4 : 3;
-    const companyHeaders = headers.slice(companyStartIdx);
+    // Detect approved and pictureUrl columns by header name
+    const approvedIdx = headers.indexOf('approved');
+    const pictureUrlIdx = headers.indexOf('pictureUrl');
+    // Company columns start after all known columns
+    const knownEndIdx = Math.max(
+      hasDocCol ? 4 : 3,
+      approvedIdx >= 0 ? approvedIdx + 1 : 0,
+      pictureUrlIdx >= 0 ? pictureUrlIdx + 1 : 0,
+    );
+    const companyHeaders = headers.slice(knownEndIdx);
 
     return rows.slice(1).map(row => {
       const companies: Record<string, boolean> = {};
       companyHeaders.forEach((name: string, idx: number) => {
-        const val = (row[idx + companyStartIdx] || '').toString().trim().toUpperCase();
+        const val = (row[idx + knownEndIdx] || '').toString().trim().toUpperCase();
         companies[name] = val === 'TRUE' || val === '☑' || val === 'YES' || val === '1';
       });
       const docVal = hasDocCol ? (row[3] || '').toString().trim().toUpperCase() : 'TRUE';
+      const approvedVal = approvedIdx >= 0 ? (row[approvedIdx] || '').toString().trim().toUpperCase() : 'TRUE';
+      const pictureUrlVal = pictureUrlIdx >= 0 ? (row[pictureUrlIdx] || '').toString().trim() : '';
       return {
         lineUserId: (row[0] || '').toString().trim(),
         displayName: (row[1] || '').toString().trim(),
-        role: ((row[2] || '').toString().trim().toLowerCase() as 'admin' | 'viewer') || 'viewer',
+        role: ((row[2] || '').toString().trim().toLowerCase() as 'super_admin' | 'admin' | 'viewer') || 'viewer',
         canViewDocuments: docVal === 'TRUE' || docVal === '☑' || docVal === 'YES' || docVal === '1',
+        approved: approvedVal === 'TRUE' || approvedVal === '☑' || approvedVal === 'YES' || approvedVal === '1',
+        pictureUrl: pictureUrlVal || undefined,
         companies,
       };
     }).filter(p => p.lineUserId);
@@ -332,21 +347,61 @@ export async function getVersionHistory(companySheet?: string): Promise<VersionE
 
 export async function appendVersion(entry: VersionEntry): Promise<void> {
   const sheets = getSheetsClient();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: getSpreadsheetId(),
-    range: `'${SPECIAL_SHEETS.VERSIONS}'!A:F`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: [[
-        entry.timestamp,
-        entry.companySheet,
-        entry.fieldChanged,
-        entry.oldValue,
-        entry.newValue,
-        entry.changedBy,
-      ]],
-    },
-  });
+  const spreadsheetId = getSpreadsheetId();
+  const sheetName = SPECIAL_SHEETS.VERSIONS;
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `'${sheetName}'!A:F`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[
+          entry.timestamp,
+          entry.companySheet,
+          entry.fieldChanged,
+          entry.oldValue,
+          entry.newValue,
+          entry.changedBy,
+        ]],
+      },
+    });
+  } catch (err: any) {
+    // Sheet doesn't exist — create it and retry
+    if (err.message?.includes('Unable to parse range')) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: sheetName } } }],
+        },
+      });
+      // Add header row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sheetName}'!A1:F1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [['Timestamp', 'Company', 'Field', 'Old Value', 'New Value', 'Changed By']] },
+      });
+      // Retry append
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `'${sheetName}'!A:F`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[
+            entry.timestamp,
+            entry.companySheet,
+            entry.fieldChanged,
+            entry.oldValue,
+            entry.newValue,
+            entry.changedBy,
+          ]],
+        },
+      });
+    } else {
+      console.error('appendVersion error:', err.message);
+    }
+  }
 }
 
 // ===== Chat Log =====
@@ -550,12 +605,14 @@ export async function updatePermissions(permissions: UserPermission[]): Promise<
   const sheets = getSheetsClient();
   const companySheets = await listCompanySheets();
 
-  const headers = ['LINE User ID', 'ชื่อ', 'Role', 'ดูเอกสาร', ...companySheets];
+  const headers = ['LINE User ID', 'ชื่อ', 'Role', 'ดูเอกสาร', 'approved', 'pictureUrl', ...companySheets];
   const rows = permissions.map(p => [
     p.lineUserId,
     p.displayName,
     p.role,
     p.canViewDocuments !== false ? 'TRUE' : 'FALSE',
+    p.approved !== false ? 'TRUE' : 'FALSE',
+    p.pictureUrl || '',
     ...companySheets.map(name => p.companies[name] ? 'TRUE' : 'FALSE'),
   ]);
 
