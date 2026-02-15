@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import {
   listCompanySheets, parseCompanySheet, updateCompanyField, appendVersion, thaiNow,
   createCompanySheet, deleteCompanySheet, updateDirectors, updateShareholders,
+  getPermissions, updatePermissions,
 } from '@company-bot/shared';
 import { Director, Shareholder } from '@company-bot/shared';
 
@@ -65,6 +66,9 @@ companiesRouter.post('/', async (req: Request, res: Response) => {
       newValue: trimmed,
       changedBy: 'admin',
     });
+
+    // Auto-update permissions sheet to include new company column
+    try { const perms = await getPermissions(); await updatePermissions(perms); } catch {}
 
     res.json({ success: true, sheetName: trimmed, driveFolderId: result.driveFolderId });
   } catch (err: any) {
@@ -144,6 +148,11 @@ companiesRouter.post('/bulk', async (req: Request, res: Response) => {
       } catch (err: any) {
         results.push({ sheetName, success: false, error: err.message });
       }
+    }
+
+    // Auto-update permissions sheet to include new company columns
+    if (created > 0) {
+      try { const perms = await getPermissions(); await updatePermissions(perms); } catch {}
     }
 
     res.json({ total: companies.length, created, failed: companies.length - created, results });
