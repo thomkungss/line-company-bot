@@ -48,13 +48,14 @@ export function buildDocumentList(company: Company): FlexMessage {
           action: doc.driveFileId
             ? {
                 type: 'uri',
-                label: 'ดาวน์โหลด',
-                uri: `${config.baseUrl}/api/download/${doc.driveFileId}`,
+                label: 'ดู PDF',
+                uri: `${config.baseUrl}/api/view/${doc.driveFileId}`,
               }
             : doc.driveUrl
             ? { type: 'uri', label: 'เปิด', uri: doc.driveUrl }
             : { type: 'postback', label: '-', data: 'action=noop' },
-          style: 'link',
+          style: 'primary',
+          color: '#17A2B8',
           height: 'sm',
           flex: 2,
         },
