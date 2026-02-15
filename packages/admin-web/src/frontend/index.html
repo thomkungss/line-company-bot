@@ -1287,6 +1287,8 @@
 
             if (res.created > 0) {
               companiesData = [];
+              closeAllModals();
+              loadCompanies();
               toast('สร้างบริษัทจาก CSV สำเร็จ ' + res.created + ' บริษัท');
             }
           }
