@@ -123,6 +123,44 @@
     .doc-row:last-child { border-bottom: none; }
     .doc-name { flex: 1; font-size: 0.9em; }
     .doc-date { font-size: 0.8em; color: #999; min-width: 100px; }
+
+    /* View mode (read-only) */
+    .view-header { background: #1DB446; color: white; padding: 20px; border-radius: 12px 12px 0 0; margin-bottom: 0; }
+    .view-header h2 { font-size: 1.3em; margin-bottom: 4px; }
+    .view-header .view-sub { font-size: 0.85em; opacity: 0.8; }
+    .view-section { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .view-section h3 { color: #1DB446; font-size: 0.95em; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .view-field { display: flex; padding: 8px 0; border-bottom: 1px solid #f8f8f8; }
+    .view-field:last-child { border-bottom: none; }
+    .view-field .vf-label { color: #999; font-size: 0.85em; width: 140px; flex-shrink: 0; }
+    .view-field .vf-value { font-size: 0.85em; color: #333; flex: 1; }
+    .view-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    .view-table th { background: #f8f9fa; padding: 8px; text-align: left; font-weight: 600; color: #666; }
+    .view-table td { padding: 8px; border-bottom: 1px solid #f0f0f0; }
+    .view-table tr:nth-child(even) { background: #fafafa; }
+    .sh-bar { display: flex; align-items: center; margin-bottom: 4px; }
+    .sh-bar .sh-name { font-size: 0.85em; color: #333; flex: 1; }
+    .sh-bar .sh-pct { font-size: 0.85em; color: #1DB446; font-weight: 600; width: 50px; text-align: right; }
+    .sh-bar-track { height: 6px; background: #eee; border-radius: 3px; margin-bottom: 8px; }
+    .sh-bar-fill { height: 100%; background: #1DB446; border-radius: 3px; }
+    .sh-detail { font-size: 0.75em; color: #999; margin-top: -6px; margin-bottom: 10px; }
+    .view-doc-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .view-doc-item:last-child { border-bottom: none; }
+    .view-doc-item .vd-name { font-size: 0.9em; color: #333; }
+    .view-doc-item .vd-meta { font-size: 0.75em; color: #17A2B8; margin-top: 2px; }
+    .view-doc-item .vd-actions { margin-top: 6px; display: flex; gap: 8px; }
+    .view-doc-item .vd-actions a { color: white; background: #17A2B8; padding: 4px 12px; border-radius: 6px; font-size: 0.8em; text-decoration: none; }
+    .view-doc-item .vd-actions a.vd-secondary { background: #6c757d; }
+    .view-seal { max-width: 200px; border-radius: 8px; border: 1px solid #eee; }
+    .view-timeline { position: relative; padding-left: 20px; }
+    .view-timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: #e0e0e0; }
+    .vt-item { position: relative; padding-bottom: 14px; }
+    .vt-item::before { content: ''; position: absolute; left: -17px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #1DB446; border: 2px solid white; box-shadow: 0 0 0 2px #1DB446; }
+    .vt-item .vt-date { font-size: 0.75em; color: #999; }
+    .vt-item .vt-field { font-size: 0.85em; color: #333; font-weight: 600; margin-top: 2px; }
+    .vt-item .vt-old { color: #e74c3c; font-size: 0.8em; }
+    .vt-item .vt-new { color: #1DB446; font-size: 0.8em; }
+    .vt-item .vt-by { font-size: 0.75em; color: #aaa; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -345,17 +383,131 @@
     }
 
     // ===== Dashboard → Company shortcuts =====
-    function goViewCompany(sheet) {
-      // Switch to companies page and show detail
+    function switchToCompaniesPage() {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('[data-page]').forEach(n => n.classList.remove('active'));
       document.getElementById('page-companies').classList.add('active');
       document.querySelector('[data-page="companies"]').classList.add('active');
-      loadCompanyDetail(sheet);
+    }
+
+    function goViewCompany(sheet) {
+      switchToCompaniesPage();
+      loadCompanyView(sheet);
     }
 
     function goEditCompany(sheet) {
-      goViewCompany(sheet);
+      switchToCompaniesPage();
+      loadCompanyDetail(sheet);
+    }
+
+    // ===== Company View (read-only, same layout as LIFF) =====
+    async function loadCompanyView(sheet) {
+      const [c, versions] = await Promise.all([
+        api('/companies/' + encodeURIComponent(sheet)),
+        api('/versions/' + encodeURIComponent(sheet)).catch(() => []),
+      ]);
+      if (!c) return;
+
+      document.getElementById('companyList').style.display = 'none';
+      const el = document.getElementById('companyDetail');
+      el.style.display = 'block';
+
+      let html = `
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button class="btn btn-secondary" onclick="backToList()">&larr; กลับ</button>
+          <button class="btn btn-primary" onclick="loadCompanyDetail('${escHtml(sheet)}')">แก้ไขข้อมูล</button>
+        </div>
+
+        <div class="view-header">
+          <h2>${escHtml(c.companyNameTh || c.sheetName)}</h2>
+          ${c.companyNameEn ? `<div class="view-sub">${escHtml(c.companyNameEn)}</div>` : ''}
+          ${c.dataDate ? `<div class="view-sub">${escHtml(c.dataDate)}</div>` : ''}
+        </div>
+
+        <div class="view-section" style="border-radius:0 0 12px 12px;margin-top:0;">
+          <h3>ข้อมูลทั่วไป</h3>
+          <div class="view-field"><span class="vf-label">เลขทะเบียน</span><span class="vf-value">${escHtml(c.registrationNumber) || '-'}</span></div>
+          <div class="view-field"><span class="vf-label">ทุนจดทะเบียน</span><span class="vf-value">${c.capitalText || (c.registeredCapital ? c.registeredCapital.toLocaleString() + ' บาท' : '-')}</span></div>
+          <div class="view-field"><span class="vf-label">อำนาจกรรมการ</span><span class="vf-value">${escHtml(c.authorizedSignatory) || '-'}</span></div>
+          <div class="view-field"><span class="vf-label">ที่อยู่</span><span class="vf-value">${escHtml(c.headOfficeAddress) || '-'}</span></div>
+          <div class="view-field"><span class="vf-label">วัตถุประสงค์</span><span class="vf-value">${escHtml(c.objectives) || '-'}</span></div>
+        </div>`;
+
+      // Seal
+      if (c.sealImageDriveId) {
+        html += `<div class="view-section"><h3>ตราประทับ</h3>
+          <img src="/api/documents/download/${escHtml(c.sealImageDriveId)}" alt="ตราประทับ" class="view-seal" onerror="this.style.display='none'">
+        </div>`;
+      }
+
+      // Directors
+      if (c.directors && c.directors.length) {
+        html += `<div class="view-section"><h3>กรรมการ (${c.directors.length} คน)</h3>
+          <table class="view-table">
+            <tr><th>#</th><th>ชื่อ</th><th>ตำแหน่ง</th></tr>
+            ${c.directors.map((d, i) => `<tr><td>${i+1}</td><td>${escHtml(d.name)}</td><td>${escHtml(d.position) || '-'}</td></tr>`).join('')}
+          </table>
+        </div>`;
+      }
+
+      // Shareholders with bar chart
+      if (c.shareholders && c.shareholders.length) {
+        const totalShares = c.shareholders.reduce((sum, s) => sum + (s.shares || 0), 0);
+        html += `<div class="view-section"><h3>ผู้ถือหุ้น (${c.shareholders.length} คน)</h3>`;
+        c.shareholders.forEach(s => {
+          const pct = s.percentage || 0;
+          html += `<div class="sh-bar">
+            <span class="sh-name">${s.order}. ${escHtml(s.name)}</span>
+            <span class="sh-pct">${pct ? pct + '%' : '-'}</span>
+          </div>
+          <div class="sh-bar-track"><div class="sh-bar-fill" style="width:${Math.min(pct, 100)}%"></div></div>
+          <div class="sh-detail">${s.shares ? s.shares.toLocaleString() + ' หุ้น' : ''}</div>`;
+        });
+        if (totalShares > 0) {
+          html += `<div style="font-size:0.8em;color:#999;border-top:1px solid #eee;padding-top:8px;margin-top:4px;">รวมทั้งหมด ${totalShares.toLocaleString()} หุ้น</div>`;
+        }
+        html += `</div>`;
+      }
+
+      // Documents
+      if (c.documents && c.documents.length) {
+        html += `<div class="view-section"><h3>เอกสาร (${c.documents.length} รายการ)</h3>`;
+        c.documents.forEach(d => {
+          let actions = '';
+          if (d.driveFileId) {
+            actions = `<a href="/api/documents/download/${escHtml(d.driveFileId)}" target="_blank">ดาวน์โหลด</a>`;
+          } else if (d.driveUrl) {
+            actions = `<a href="${escHtml(d.driveUrl)}" target="_blank">เปิด</a>`;
+          }
+          html += `<div class="view-doc-item">
+            <div class="vd-name">${escHtml(d.name)}</div>
+            ${d.updatedDate ? `<div class="vd-meta">อัปเดต: ${escHtml(d.updatedDate)}</div>` : ''}
+            <div class="vd-actions">${actions}</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Version History
+      const versionList = Array.isArray(versions) ? versions : [];
+      html += `<div class="view-section"><h3>ประวัติการเปลี่ยนแปลง</h3>`;
+      if (versionList.length > 0) {
+        html += `<div class="view-timeline">`;
+        versionList.slice(0, 20).forEach(v => {
+          html += `<div class="vt-item">
+            <div class="vt-date">${escHtml(v.timestamp)}</div>
+            <div class="vt-field">${escHtml(v.fieldChanged)}</div>
+            <div>${v.oldValue ? `<span class="vt-old">${escHtml(v.oldValue)}</span> → ` : ''}<span class="vt-new">${escHtml(v.newValue)}</span></div>
+            ${v.changedBy ? `<div class="vt-by">โดย ${escHtml(v.changedBy)}</div>` : ''}
+          </div>`;
+        });
+        html += `</div>`;
+      } else {
+        html += `<div style="text-align:center;color:#999;font-size:0.85em;padding:16px 0;">ยังไม่มีประวัติการเปลี่ยนแปลง</div>`;
+      }
+      html += `</div>`;
+
+      el.innerHTML = html;
     }
 
     // ===== Create Company =====
