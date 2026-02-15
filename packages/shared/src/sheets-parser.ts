@@ -257,19 +257,24 @@ export async function getPermissions(): Promise<UserPermission[]> {
     if (rows.length < 2) return [];
 
     const headers = rows[0].map((h: string) => h.toString().trim());
-    // Headers: LINE User ID | ชื่อ | Role | company1 | company2 | ...
-    const companyHeaders = headers.slice(3);
+    // Headers: LINE User ID | ชื่อ | Role | ดูเอกสาร | company1 | company2 | ...
+    // Support old format without ดูเอกสาร column
+    const hasDocCol = headers[3] === 'ดูเอกสาร';
+    const companyStartIdx = hasDocCol ? 4 : 3;
+    const companyHeaders = headers.slice(companyStartIdx);
 
     return rows.slice(1).map(row => {
       const companies: Record<string, boolean> = {};
       companyHeaders.forEach((name: string, idx: number) => {
-        const val = (row[idx + 3] || '').toString().trim().toUpperCase();
+        const val = (row[idx + companyStartIdx] || '').toString().trim().toUpperCase();
         companies[name] = val === 'TRUE' || val === '☑' || val === 'YES' || val === '1';
       });
+      const docVal = hasDocCol ? (row[3] || '').toString().trim().toUpperCase() : 'TRUE';
       return {
         lineUserId: (row[0] || '').toString().trim(),
         displayName: (row[1] || '').toString().trim(),
         role: ((row[2] || '').toString().trim().toLowerCase() as 'admin' | 'viewer') || 'viewer',
+        canViewDocuments: docVal === 'TRUE' || docVal === '☑' || docVal === 'YES' || docVal === '1',
         companies,
       };
     }).filter(p => p.lineUserId);
@@ -519,11 +524,12 @@ export async function updatePermissions(permissions: UserPermission[]): Promise<
   const sheets = getSheetsClient();
   const companySheets = await listCompanySheets();
 
-  const headers = ['LINE User ID', 'ชื่อ', 'Role', ...companySheets];
+  const headers = ['LINE User ID', 'ชื่อ', 'Role', 'ดูเอกสาร', ...companySheets];
   const rows = permissions.map(p => [
     p.lineUserId,
     p.displayName,
     p.role,
+    p.canViewDocuments !== false ? 'TRUE' : 'FALSE',
     ...companySheets.map(name => p.companies[name] ? 'TRUE' : 'FALSE'),
   ]);
 

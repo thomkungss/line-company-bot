@@ -831,7 +831,7 @@
         <table>
           <thead>
             <tr>
-              <th>LINE User ID</th><th>ชื่อ</th><th>Role</th>
+              <th>LINE User ID</th><th>ชื่อ</th><th>Role</th><th style="text-align:center;">ดูเอกสาร</th>
               ${companySheets.map(s => `<th style="text-align:center;">${escHtml(s)}</th>`).join('')}
             </tr>
           </thead>
@@ -845,6 +845,9 @@
                     <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>viewer</option>
                     <option value="admin" ${p.role === 'admin' ? 'selected' : ''}>admin</option>
                   </select>
+                </td>
+                <td style="text-align:center;">
+                  <input type="checkbox" data-row="${i}" data-field="canViewDocuments" ${p.canViewDocuments !== false ? 'checked' : ''}>
                 </td>
                 ${companySheets.map(s => `
                   <td style="text-align:center;">
@@ -861,7 +864,7 @@
 
     function addPermRow() {
       if (!permData) return;
-      permData.permissions.push({ lineUserId: '', displayName: '', role: 'viewer', companies: {} });
+      permData.permissions.push({ lineUserId: '', displayName: '', role: 'viewer', canViewDocuments: true, companies: {} });
       loadPermissions();
     }
 
@@ -871,7 +874,11 @@
       document.querySelectorAll('[data-row][data-field]').forEach(el => {
         const i = Number(el.dataset.row);
         const field = el.dataset.field;
-        rows[i][field] = el.value || el.tagName === 'SELECT' ? el.value : el.value;
+        if (field === 'canViewDocuments') {
+          rows[i][field] = el.checked;
+        } else {
+          rows[i][field] = el.value || el.tagName === 'SELECT' ? el.value : el.value;
+        }
       });
       document.querySelectorAll('[data-row][data-company]').forEach(el => {
         const i = Number(el.dataset.row);
