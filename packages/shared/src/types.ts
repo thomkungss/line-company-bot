@@ -56,6 +56,7 @@ export interface UserPermission {
   canViewDocuments: boolean;
   approved?: boolean;
   pictureUrl?: string;
+  pendingCompanies?: string; // comma-separated company names awaiting approval
   companies: Record<string, boolean>; // sheetName → hasAccess
 }
 

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Client } from '@line/bot-sdk';
-import { parseCompanySheet, getAccessibleCompanies, getVersionHistory, getPermissions, updatePermissions } from '@company-bot/shared';
-import { buildApprovalRequest } from '../flex/registration';
+import { parseCompanySheet, getAccessibleCompanies, getVersionHistory, getPermissions, updatePermissions, listCompanySheets, getUserPermission } from '@company-bot/shared';
+import { buildApprovalRequest, buildCompanyAccessApproval } from '../flex/registration';
 import { config } from '../config';
 
 export const liffApiRouter = Router();
@@ -92,5 +92,70 @@ liffApiRouter.post('/register', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Registration error:', err.message);
     res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+/** Get all company names for LIFF request-access page */
+liffApiRouter.get('/companies', async (_req: Request, res: Response) => {
+  try {
+    const companies = await listCompanySheets();
+    res.json(companies);
+  } catch (err: any) {
+    console.error('List companies error:', err.message);
+    res.status(500).json({ error: 'Failed to list companies' });
+  }
+});
+
+/** Request access to companies via LIFF */
+liffApiRouter.post('/request-access', async (req: Request, res: Response) => {
+  try {
+    const { userId, companies } = req.body as { userId: string; companies: string[] };
+
+    if (!userId || !companies || companies.length === 0) {
+      res.status(400).json({ error: 'userId and companies are required' });
+      return;
+    }
+
+    const allPerms = await getPermissions();
+    const userPerm = allPerms.find(p => p.lineUserId === userId);
+    if (!userPerm) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (!userPerm.approved) {
+      res.status(403).json({ error: 'User not approved yet' });
+      return;
+    }
+    if (userPerm.pendingCompanies) {
+      res.status(409).json({ error: 'already_pending', message: 'คุณมีคำขอที่รออนุมัติอยู่แล้ว' });
+      return;
+    }
+
+    // Save pending companies
+    userPerm.pendingCompanies = companies.join(',');
+    await updatePermissions(allPerms);
+
+    // Notify all super_admins
+    try {
+      const client = new Client({
+        channelAccessToken: config.lineChannelAccessToken,
+        channelSecret: config.lineChannelSecret,
+      });
+
+      const superAdmins = allPerms.filter(p => p.role === 'super_admin' && p.approved !== false);
+      const approvalFlex = buildCompanyAccessApproval(userId, userPerm.displayName, companies, userPerm.pictureUrl);
+      await Promise.allSettled(
+        superAdmins.map(admin =>
+          client.pushMessage(admin.lineUserId, approvalFlex)
+        )
+      );
+    } catch (err) {
+      console.error('Failed to notify super_admins:', err);
+    }
+
+    res.json({ success: true, message: 'ส่งคำขอสำเร็จ รอการอนุมัติจากผู้ดูแลระบบ' });
+  } catch (err: any) {
+    console.error('Request access error:', err.message);
+    res.status(500).json({ error: 'Request failed' });
   }
 });

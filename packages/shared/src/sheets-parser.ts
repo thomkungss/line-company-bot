@@ -266,14 +266,16 @@ export async function getPermissions(): Promise<UserPermission[]> {
     // Headers: LINE User ID | ชื่อ | Role | ดูเอกสาร | approved | pictureUrl | company1 | company2 | ...
     // Support old format without ดูเอกสาร column
     const hasDocCol = headers[3] === 'ดูเอกสาร';
-    // Detect approved and pictureUrl columns by header name
+    // Detect approved, pictureUrl, pendingCompanies columns by header name
     const approvedIdx = headers.indexOf('approved');
     const pictureUrlIdx = headers.indexOf('pictureUrl');
+    const pendingCompaniesIdx = headers.indexOf('pendingCompanies');
     // Company columns start after all known columns
     const knownEndIdx = Math.max(
       hasDocCol ? 4 : 3,
       approvedIdx >= 0 ? approvedIdx + 1 : 0,
       pictureUrlIdx >= 0 ? pictureUrlIdx + 1 : 0,
+      pendingCompaniesIdx >= 0 ? pendingCompaniesIdx + 1 : 0,
     );
     const companyHeaders = headers.slice(knownEndIdx);
 
@@ -286,6 +288,7 @@ export async function getPermissions(): Promise<UserPermission[]> {
       const docVal = hasDocCol ? (row[3] || '').toString().trim().toUpperCase() : 'TRUE';
       const approvedVal = approvedIdx >= 0 ? (row[approvedIdx] || '').toString().trim().toUpperCase() : 'TRUE';
       const pictureUrlVal = pictureUrlIdx >= 0 ? (row[pictureUrlIdx] || '').toString().trim() : '';
+      const pendingCompaniesVal = pendingCompaniesIdx >= 0 ? (row[pendingCompaniesIdx] || '').toString().trim() : '';
       return {
         lineUserId: (row[0] || '').toString().trim(),
         displayName: (row[1] || '').toString().trim(),
@@ -293,6 +296,7 @@ export async function getPermissions(): Promise<UserPermission[]> {
         canViewDocuments: docVal === 'TRUE' || docVal === '☑' || docVal === 'YES' || docVal === '1',
         approved: approvedVal === 'TRUE' || approvedVal === '☑' || approvedVal === 'YES' || approvedVal === '1',
         pictureUrl: pictureUrlVal || undefined,
+        pendingCompanies: pendingCompaniesVal || undefined,
         companies,
       };
     }).filter(p => p.lineUserId);
@@ -605,7 +609,7 @@ export async function updatePermissions(permissions: UserPermission[]): Promise<
   const sheets = getSheetsClient();
   const companySheets = await listCompanySheets();
 
-  const headers = ['LINE User ID', 'ชื่อ', 'Role', 'ดูเอกสาร', 'approved', 'pictureUrl', ...companySheets];
+  const headers = ['LINE User ID', 'ชื่อ', 'Role', 'ดูเอกสาร', 'approved', 'pictureUrl', 'pendingCompanies', ...companySheets];
   const rows = permissions.map(p => [
     p.lineUserId,
     p.displayName,
@@ -613,6 +617,7 @@ export async function updatePermissions(permissions: UserPermission[]): Promise<
     p.canViewDocuments !== false ? 'TRUE' : 'FALSE',
     p.approved !== false ? 'TRUE' : 'FALSE',
     p.pictureUrl || '',
+    p.pendingCompanies || '',
     ...companySheets.map(name => p.companies[name] ? 'TRUE' : 'FALSE'),
   ]);
 

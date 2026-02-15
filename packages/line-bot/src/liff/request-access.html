@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ขอสิทธิ์เข้าถึงบริษัท — Company Secretary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    .header { background: #1DB446; color: white; padding: 20px; text-align: center; }
+    .header h1 { font-size: 1.2em; }
+    .header p { font-size: 0.85em; opacity: 0.8; margin-top: 4px; }
+    .container { padding: 20px; max-width: 480px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card-title { font-size: 1.1em; font-weight: 700; color: #333; margin-bottom: 4px; }
+    .card-sub { font-size: 0.85em; color: #999; margin-bottom: 16px; }
+    .company-list { list-style: none; }
+    .company-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .company-item:last-child { border-bottom: none; }
+    .company-item label { display: flex; align-items: center; width: 100%; cursor: pointer; font-size: 0.95em; }
+    .company-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; accent-color: #1DB446; flex-shrink: 0; }
+    .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 1em; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 16px; }
+    .btn-primary { background: #1DB446; color: white; }
+    .btn-primary:hover { background: #17a03d; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .loading { text-align: center; padding: 60px 20px; color: #999; }
+    .loading .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #eee; border-top-color: #1DB446; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .result { text-align: center; padding: 20px; }
+    .result-icon { font-size: 3em; margin-bottom: 12px; }
+    .result-icon.success { color: #1DB446; }
+    .result-icon.error { color: #e74c3c; }
+    .result-icon.warning { color: #F39C12; }
+    .result-msg { font-size: 1.05em; font-weight: 500; margin-bottom: 8px; }
+    .result-sub { font-size: 0.85em; color: #999; }
+    .selected-count { font-size: 0.85em; color: #1DB446; font-weight: 600; margin-top: 8px; }
+    .empty { text-align: center; padding: 20px; color: #999; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Company Secretary</h1>
+    <p>ขอสิทธิ์เข้าถึงบริษัท</p>
+  </div>
+  <div class="container">
+    <div id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div>กำลังโหลดข้อมูล...</div>
+      </div>
+    </div>
+  </div>
+  <script src="/liff/env.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    var profileData = null;
+
+    async function init() {
+      try {
+        var liffId = window.LIFF_ID || '';
+        if (!liffId) {
+          showError('ไม่พบการตั้งค่า LIFF');
+          return;
+        }
+
+        await liff.init({ liffId: liffId });
+
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+
+        var profile = await liff.getProfile();
+        profileData = {
+          userId: profile.userId,
+          displayName: profile.displayName,
+          pictureUrl: profile.pictureUrl || '',
+        };
+
+        // Fetch available companies
+        var res = await fetch('/api/liff/companies');
+        if (!res.ok) throw new Error('Failed to load companies');
+        var companies = await res.json();
+
+        if (!companies || companies.length === 0) {
+          showResult('warning', 'ไม่มีบริษัทในระบบ', 'กรุณาติดต่อผู้ดูแลระบบ');
+          return;
+        }
+
+        showCompanySelection(companies);
+      } catch (err) {
+        console.error('Init error:', err);
+        showError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      }
+    }
+
+    function showCompanySelection(companies) {
+      var content = document.getElementById('content');
+      var listHtml = '';
+      for (var i = 0; i < companies.length; i++) {
+        var name = escHtml(companies[i]);
+        listHtml +=
+          '<li class="company-item">' +
+            '<label>' +
+              '<input type="checkbox" name="company" value="' + name + '" onchange="updateCount()">' +
+              name +
+            '</label>' +
+          '</li>';
+      }
+
+      content.innerHTML =
+        '<div class="card">' +
+          '<div class="card-title">เลือกบริษัทที่ต้องการเข้าถึง</div>' +
+          '<div class="card-sub">เลือกบริษัทแล้วกดขอสิทธิ์ ผู้ดูแลระบบจะได้รับแจ้งเตือน</div>' +
+          '<ul class="company-list">' + listHtml + '</ul>' +
+          '<div class="selected-count" id="selectedCount"></div>' +
+          '<button class="btn btn-primary" id="submitBtn" onclick="doSubmit()" disabled>ขอสิทธิ์เข้าถึง</button>' +
+        '</div>';
+    }
+
+    function updateCount() {
+      var checked = document.querySelectorAll('input[name="company"]:checked');
+      var countEl = document.getElementById('selectedCount');
+      var btn = document.getElementById('submitBtn');
+      if (checked.length > 0) {
+        countEl.textContent = 'เลือกแล้ว ' + checked.length + ' บริษัท';
+        btn.disabled = false;
+      } else {
+        countEl.textContent = '';
+        btn.disabled = true;
+      }
+    }
+
+    async function doSubmit() {
+      if (!profileData) return;
+      var checked = document.querySelectorAll('input[name="company"]:checked');
+      if (checked.length === 0) return;
+
+      var companies = [];
+      for (var i = 0; i < checked.length; i++) {
+        companies.push(checked[i].value);
+      }
+
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'กำลังส่งคำขอ...';
+
+      try {
+        var res = await fetch('/api/liff/request-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: profileData.userId,
+            companies: companies,
+          }),
+        });
+        var data = await res.json();
+
+        if (res.ok && data.success) {
+          showResult('success', 'ส่งคำขอสำเร็จ!', 'รอการอนุมัติจากผู้ดูแลระบบ เมื่ออนุมัติแล้วจะแจ้งเตือนทาง LINE');
+        } else if (res.status === 409) {
+          showResult('warning', 'มีคำขอรออนุมัติอยู่แล้ว', 'กรุณารอผู้ดูแลระบบอนุมัติ');
+        } else {
+          showResult('error', 'เกิดข้อผิดพลาด', data.error || 'กรุณาลองใหม่อีกครั้ง');
+        }
+      } catch (err) {
+        console.error('Submit error:', err);
+        showResult('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      }
+    }
+
+    function showResult(type, title, subtitle) {
+      var icons = { success: '\u2714', error: '\u2716', warning: '\u26A0' };
+      var content = document.getElementById('content');
+      content.innerHTML =
+        '<div class="card">' +
+          '<div class="result">' +
+            '<div class="result-icon ' + type + '">' + icons[type] + '</div>' +
+            '<div class="result-msg">' + escHtml(title) + '</div>' +
+            '<div class="result-sub">' + escHtml(subtitle) + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    function showError(msg) {
+      showResult('error', 'ข้อผิดพลาด', msg);
+    }
+
+    function escHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    init();
+  </script>
+</body>
+</html>

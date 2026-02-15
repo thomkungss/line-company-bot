@@ -2,7 +2,7 @@ import { Client, MessageEvent, TextMessage, FlexMessage } from '@line/bot-sdk';
 import { getAccessibleCompanies, getUserPermission, parseCompanySheet } from '@company-bot/shared';
 import { handleCommand } from './command';
 import { buildCompanyDetailFlex } from '../flex/company-card';
-import { buildRegistrationPrompt, buildPendingApproval } from '../flex/registration';
+import { buildRegistrationPrompt, buildPendingApproval, buildNoCompanyAccess, buildPendingCompanyAccess } from '../flex/registration';
 import { handleAIChat } from '../services/claude';
 import { config } from '../config';
 
@@ -43,10 +43,11 @@ export async function handleMessage(client: Client, event: MessageEvent): Promis
     .map(([name]) => name);
 
   if (accessibleCompanies.length === 0) {
-    await client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'คุณยังไม่มีสิทธิ์เข้าถึงบริษัทใด กรุณาติดต่อผู้ดูแลระบบ',
-    });
+    if (perm.pendingCompanies) {
+      await client.replyMessage(event.replyToken, buildPendingCompanyAccess());
+    } else {
+      await client.replyMessage(event.replyToken, buildNoCompanyAccess(config.liffId));
+    }
     return;
   }
 

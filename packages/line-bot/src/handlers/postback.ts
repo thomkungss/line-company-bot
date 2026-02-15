@@ -190,6 +190,98 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
       break;
     }
 
+    case 'approve_access': {
+      if (!pb.userId) return;
+      if (perm.role !== 'super_admin') {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'เฉพาะ super_admin เท่านั้นที่สามารถอนุมัติได้',
+        });
+        return;
+      }
+      const allPermsAccess = await getPermissions();
+      const targetAccess = allPermsAccess.find(p => p.lineUserId === pb.userId);
+      if (!targetAccess) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ไม่พบผู้ใช้นี้ในระบบ',
+        });
+        return;
+      }
+      if (!targetAccess.pendingCompanies) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ผู้ใช้นี้ไม่มีคำขอสิทธิ์บริษัทที่รออนุมัติ',
+        });
+        return;
+      }
+      // Grant access to pending companies
+      const pendingList = targetAccess.pendingCompanies.split(',').map(s => s.trim()).filter(Boolean);
+      for (const companyName of pendingList) {
+        targetAccess.companies[companyName] = true;
+      }
+      targetAccess.pendingCompanies = undefined;
+      await updatePermissions(allPermsAccess);
+      // Notify user
+      try {
+        await client.pushMessage(pb.userId, {
+          type: 'text',
+          text: `คุณได้รับสิทธิ์เข้าถึงบริษัท: ${pendingList.join(', ')} แล้ว! ส่งข้อความมาเพื่อเริ่มใช้งาน`,
+        });
+      } catch (err) {
+        console.error('Failed to push access approval notification:', err);
+      }
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `อนุมัติสิทธิ์บริษัท ${pendingList.join(', ')} ให้ ${targetAccess.displayName} เรียบร้อยแล้ว`,
+      });
+      break;
+    }
+
+    case 'reject_access': {
+      if (!pb.userId) return;
+      if (perm.role !== 'super_admin') {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'เฉพาะ super_admin เท่านั้นที่สามารถปฏิเสธได้',
+        });
+        return;
+      }
+      const allPermsRejectAccess = await getPermissions();
+      const targetRejectAccess = allPermsRejectAccess.find(p => p.lineUserId === pb.userId);
+      if (!targetRejectAccess) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ไม่พบผู้ใช้นี้ในระบบ',
+        });
+        return;
+      }
+      if (!targetRejectAccess.pendingCompanies) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ผู้ใช้นี้ไม่มีคำขอสิทธิ์บริษัทที่รออนุมัติ',
+        });
+        return;
+      }
+      // Clear pending companies
+      targetRejectAccess.pendingCompanies = undefined;
+      await updatePermissions(allPermsRejectAccess);
+      // Notify user
+      try {
+        await client.pushMessage(pb.userId, {
+          type: 'text',
+          text: 'คำขอสิทธิ์เข้าถึงบริษัทของคุณถูกปฏิเสธ หากต้องการขอใหม่กรุณาส่งข้อความมา',
+        });
+      } catch (err) {
+        console.error('Failed to push access rejection notification:', err);
+      }
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `ปฏิเสธคำขอสิทธิ์บริษัทของ ${targetRejectAccess.displayName} เรียบร้อยแล้ว`,
+      });
+      break;
+    }
+
     default:
       await client.replyMessage(event.replyToken, {
         type: 'text',
