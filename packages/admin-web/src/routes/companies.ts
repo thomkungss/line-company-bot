@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import {
   listCompanySheets, parseCompanySheet, updateCompanyField, appendVersion, thaiNow,
   createCompanySheet, deleteCompanySheet, updateDirectors, updateShareholders,
-  getPermissions, updatePermissions,
+  getPermissions, updatePermissions, getDocumentExpiryStatus,
 } from '@company-bot/shared';
 import { Director, Shareholder } from '@company-bot/shared';
 
@@ -207,6 +207,43 @@ companiesRouter.get('/all-people', async (_req: Request, res: Response) => {
       directors: [...directorNames].sort(),
       shareholders: [...shareholderNames].sort(),
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Get all expiring/expired documents across all companies */
+companiesRouter.get('/expiring', async (_req: Request, res: Response) => {
+  try {
+    const names = await listCompanySheets();
+    const results: { sheetName: string; companyNameTh: string; docName: string; expiryDate: string; status: string }[] = [];
+
+    await Promise.all(
+      names.map(async (name) => {
+        try {
+          const c = await parseCompanySheet(name);
+          for (const doc of c.documents) {
+            if (!doc.expiryDate) continue;
+            const status = getDocumentExpiryStatus(doc.expiryDate);
+            if (status === 'expired' || status === 'expiring-7d' || status === 'expiring-30d') {
+              results.push({
+                sheetName: c.sheetName,
+                companyNameTh: c.companyNameTh || c.sheetName,
+                docName: doc.name,
+                expiryDate: doc.expiryDate,
+                status,
+              });
+            }
+          }
+        } catch {}
+      })
+    );
+
+    // Sort: expired first, then expiring-7d, then expiring-30d
+    const order: Record<string, number> = { 'expired': 0, 'expiring-7d': 1, 'expiring-30d': 2 };
+    results.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
+
+    res.json(results);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

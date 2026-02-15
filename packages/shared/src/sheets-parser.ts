@@ -230,6 +230,7 @@ function parseDocuments(rows: SheetRow[]): CompanyDocument[] {
     const nameCell = (rows[i][0] || rows[i][1] || '').toString().trim();
     const linkCell = (rows[i][1] || rows[i][2] || '').toString().trim();
     const dateCell = (rows[i][2] || rows[i][3] || '').toString().trim();
+    const expiryCell = (rows[i][3] || '').toString().trim();
 
     if (!nameCell || nameCell === '-') continue;
     // Stop at next section
@@ -239,11 +240,13 @@ function parseDocuments(rows: SheetRow[]): CompanyDocument[] {
     if (nameCell && (driveFileId || linkCell)) {
       // dateCell: ถ้าไม่ใช่ link และไม่ว่าง ถือว่าเป็นวันที่
       const updatedDate = dateCell && !dateCell.startsWith('http') ? dateCell : undefined;
+      const expiryDate = expiryCell && !expiryCell.startsWith('http') ? expiryCell : undefined;
       docs.push({
         name: nameCell.replace(/^\d+\.?\s*/, ''),
         driveFileId,
         driveUrl: linkCell.startsWith('http') ? linkCell : undefined,
         updatedDate,
+        expiryDate,
       });
     }
   }
@@ -512,11 +515,12 @@ export async function updateDocumentInSheet(
   sheetName: string,
   documentName: string,
   newDriveUrl: string,
+  expiryDate?: string,
 ): Promise<{ row: number; oldLink: string } | null> {
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
-    range: `'${sheetName}'!A:C`,
+    range: `'${sheetName}'!A:D`,
   });
   const rows = res.data.values || [];
 
@@ -537,13 +541,14 @@ export async function updateDocumentInSheet(
       const oldLink = (rows[i][1] || '').toString();
       const now = new Date();
       const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+      const existingExpiry = (rows[i][3] || '').toString();
 
-      // Update columns B (link) and C (date) in one call
+      // Update columns B (link), C (date), D (expiry) in one call
       await sheets.spreadsheets.values.update({
         spreadsheetId: getSpreadsheetId(),
-        range: `'${sheetName}'!B${i + 1}:C${i + 1}`,
+        range: `'${sheetName}'!B${i + 1}:D${i + 1}`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [[newDriveUrl, dateStr]] },
+        requestBody: { values: [[newDriveUrl, dateStr, expiryDate ?? existingExpiry]] },
       });
       return { row: i + 1, oldLink };
     }
@@ -557,11 +562,12 @@ export async function addDocumentToSheet(
   sheetName: string,
   documentName: string,
   driveUrl: string,
+  expiryDate?: string,
 ): Promise<void> {
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
-    range: `'${sheetName}'!A:C`,
+    range: `'${sheetName}'!A:D`,
   });
   const rows = res.data.values || [];
 
@@ -573,11 +579,11 @@ export async function addDocumentToSheet(
     // No document section yet — append at the end
     await sheets.spreadsheets.values.append({
       spreadsheetId: getSpreadsheetId(),
-      range: `'${sheetName}'!A:C`,
+      range: `'${sheetName}'!A:D`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [
-        ['เอกสารที่เกี่ยวข้อง', '', ''],
-        [documentName, driveUrl, dateStr],
+        ['เอกสารที่เกี่ยวข้อง', '', '', ''],
+        [documentName, driveUrl, dateStr, expiryDate || ''],
       ] },
     });
   } else {
@@ -596,11 +602,87 @@ export async function addDocumentToSheet(
     // Insert at lastDocRow
     await sheets.spreadsheets.values.update({
       spreadsheetId: getSpreadsheetId(),
-      range: `'${sheetName}'!A${lastDocRow + 1}:C${lastDocRow + 1}`,
+      range: `'${sheetName}'!A${lastDocRow + 1}:D${lastDocRow + 1}`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [[documentName, driveUrl, dateStr]] },
+      requestBody: { values: [[documentName, driveUrl, dateStr, expiryDate || '']] },
     });
   }
+}
+
+// ===== Update document expiry date =====
+
+export async function updateDocumentExpiry(
+  sheetName: string,
+  documentName: string,
+  expiryDate: string,
+): Promise<{ row: number } | null> {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: getSpreadsheetId(),
+    range: `'${sheetName}'!A:D`,
+  });
+  const rows = res.data.values || [];
+
+  const docSectionIdx = findRowIndex(rows, 'เอกสาร');
+  if (docSectionIdx < 0) return null;
+
+  for (let i = docSectionIdx + 1; i < rows.length; i++) {
+    const nameCell = (rows[i][0] || '').toString().trim();
+    if (nameCell.startsWith('_')) break;
+    const looksLikeHeader = ['ตราประทับ', 'วัตถุ', 'ที่ตั้ง', 'หมายเหตุ', 'ผู้ถือหุ้น', 'กรรมการ', 'อำนาจ', 'ทุน'].some(
+      h => nameCell.includes(h)
+    );
+    if (looksLikeHeader) break;
+
+    if (nameCell === documentName || nameCell.includes(documentName)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: getSpreadsheetId(),
+        range: `'${sheetName}'!D${i + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[expiryDate]] },
+      });
+      return { row: i + 1 };
+    }
+  }
+  return null;
+}
+
+// ===== Document expiry status helper =====
+
+export function getDocumentExpiryStatus(expiryDateStr?: string): 'expired' | 'expiring-7d' | 'expiring-30d' | 'ok' | null {
+  if (!expiryDateStr) return null;
+
+  // Try parsing various date formats: DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+  let expiry: Date | null = null;
+  const trimmed = expiryDateStr.trim();
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    expiry = new Date(trimmed + 'T00:00:00+07:00');
+  }
+  // DD/MM/YYYY or DD-MM-YYYY
+  else {
+    const match = trimmed.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+    if (match) {
+      const [, dd, mm, yyyy] = match;
+      expiry = new Date(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T00:00:00+07:00`);
+    }
+  }
+
+  if (!expiry || isNaN(expiry.getTime())) return null;
+
+  // Use Bangkok timezone for "today"
+  const nowBangkok = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const today = new Date(nowBangkok.getFullYear(), nowBangkok.getMonth(), nowBangkok.getDate());
+  const expiryDay = new Date(expiry.getFullYear(), expiry.getMonth(), expiry.getDate());
+
+  const diffMs = expiryDay.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'expired';
+  if (diffDays <= 7) return 'expiring-7d';
+  if (diffDays <= 30) return 'expiring-30d';
+  return 'ok';
 }
 
 // ===== Update permissions =====
@@ -694,7 +776,7 @@ export async function createCompanySheet(sheetName: string): Promise<{ driveFold
     [''],
     [''],
     ['เอกสารที่เกี่ยวข้อง'],
-    ['ชื่อเอกสาร', 'ลิงก์', 'วันที่อัปเดต'],
+    ['ชื่อเอกสาร', 'ลิงก์', 'วันที่อัปเดต', 'วันหมดอายุ'],
   ];
 
   await sheets.spreadsheets.values.update({

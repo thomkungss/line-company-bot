@@ -3,7 +3,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
-import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet } from '@company-bot/shared';
+import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet, updateDocumentExpiry } from '@company-bot/shared';
 import { Readable } from 'stream';
 import { config } from '../config';
 
@@ -36,6 +36,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
 
     const sheet: string = req.params.sheet as string;
     const documentName: string = (req.body.documentName || '').toString().trim();
+    const expiryDate: string | undefined = (req.body.expiryDate || '').toString().trim() || undefined;
 
     // Generate unique filename
     const ext = path.extname(req.file.originalname) || '';
@@ -77,11 +78,11 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       fs.unlinkSync(filePath);
       fileUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
     } else if (documentName) {
-      const updated = await updateDocumentInSheet(sheet, documentName, fileUrl);
+      const updated = await updateDocumentInSheet(sheet, documentName, fileUrl, expiryDate);
       if (updated) {
         sheetUpdated = true;
       } else {
-        await addDocumentToSheet(sheet, documentName, fileUrl);
+        await addDocumentToSheet(sheet, documentName, fileUrl, expiryDate);
         sheetUpdated = true;
       }
     }
@@ -94,6 +95,26 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     });
   } catch (err: any) {
     console.error('Upload error:', err.message, err.stack);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Update expiry date for a specific document */
+documentsRouter.put('/:sheet/expiry', async (req: Request, res: Response) => {
+  try {
+    const sheet: string = req.params.sheet as string;
+    const { documentName, expiryDate } = req.body;
+    if (!documentName) {
+      res.status(400).json({ error: 'documentName is required' });
+      return;
+    }
+    const result = await updateDocumentExpiry(sheet, documentName, expiryDate || '');
+    if (result) {
+      res.json({ success: true, row: result.row });
+    } else {
+      res.status(404).json({ error: 'Document not found' });
+    }
+  } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });

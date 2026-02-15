@@ -71,6 +71,8 @@
     .badge-green { background: #d4edda; color: #155724; }
     .badge-blue { background: #d1ecf1; color: #0c5460; }
     .badge-yellow { background: #fff3cd; color: #856404; }
+    .badge-red { background: #f8d7da; color: #721c24; }
+    .badge-orange { background: #ffe0b2; color: #e65100; }
 
     /* Page sections */
     .page { display: none; }
@@ -211,6 +213,14 @@
         <div class="stat-card"><div class="label">ผู้ถือหุ้นทั้งหมด</div><div class="value" id="statShareholders">-</div></div>
         <div class="stat-card"><div class="label">เอกสารทั้งหมด</div><div class="value" id="statDocuments">-</div></div>
       </div>
+      <div class="card" id="expiringDocsCard" style="display:none;">
+        <h3 style="color:#e65100;">เอกสารใกล้หมดอายุ</h3>
+        <table>
+          <thead><tr><th>บริษัท</th><th>เอกสาร</th><th>วันหมดอายุ</th><th>สถานะ</th></tr></thead>
+          <tbody id="expiringDocsTable"></tbody>
+        </table>
+      </div>
+
       <div class="card">
         <h3>ภาพรวมบริษัท</h3>
         <table>
@@ -519,6 +529,31 @@
           </td>
         </tr>
       `).join('');
+
+      // Load expiring documents
+      loadExpiringDocs();
+    }
+
+    async function loadExpiringDocs() {
+      try {
+        const docs = await api('/companies/expiring') || [];
+        const card = document.getElementById('expiringDocsCard');
+        const tbody = document.getElementById('expiringDocsTable');
+        if (!docs.length) { card.style.display = 'none'; return; }
+        card.style.display = 'block';
+        tbody.innerHTML = docs.map(d => {
+          let badgeClass = 'badge-yellow';
+          let statusText = 'ใกล้หมดอายุ (30 วัน)';
+          if (d.status === 'expired') { badgeClass = 'badge-red'; statusText = 'หมดอายุแล้ว'; }
+          else if (d.status === 'expiring-7d') { badgeClass = 'badge-orange'; statusText = 'ใกล้หมดอายุ (7 วัน)'; }
+          return `<tr>
+            <td><strong>${escHtml(d.companyNameTh)}</strong></td>
+            <td>${escHtml(d.docName)}</td>
+            <td>${escHtml(d.expiryDate)}</td>
+            <td><span class="badge ${badgeClass}">${statusText}</span></td>
+          </tr>`;
+        }).join('');
+      } catch {}
     }
 
     async function triggerSync() {
@@ -628,9 +663,12 @@
           } else if (d.driveUrl) {
             actions = `<a href="${escHtml(d.driveUrl)}" target="_blank">เปิด</a>`;
           }
+          const expiryStatus = getExpiryStatus(d.expiryDate);
+          const expiryBadge = expiryStatus ? ' ' + getExpiryBadgeHtml(expiryStatus) : '';
           html += `<div class="view-doc-item">
-            <div class="vd-name">${escHtml(d.name)}</div>
+            <div class="vd-name">${escHtml(d.name)}${expiryBadge}</div>
             ${d.updatedDate ? `<div class="vd-meta">อัปเดต: ${escHtml(d.updatedDate)}</div>` : ''}
+            ${d.expiryDate ? `<div class="vd-meta">หมดอายุ: ${escHtml(d.expiryDate)}</div>` : ''}
             <div class="vd-actions">${actions}</div>
           </div>`;
         });
@@ -833,24 +871,32 @@
             <h3>เอกสาร (<span id="documentCount">${(c.documents || []).length}</span> รายการ)</h3>
           </div>
           <div id="documentsSection">
-            ${(c.documents || []).map(d => `
-              <div class="doc-row">
-                <div class="doc-name">${escHtml(d.name)}</div>
+            ${(c.documents || []).map(d => {
+              const expiryStatus = getExpiryStatus(d.expiryDate);
+              const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
+              return `
+              <div class="doc-row" style="flex-wrap:wrap;">
+                <div class="doc-name">${escHtml(d.name)} ${expiryBadge}</div>
                 <div class="doc-date">${escHtml(d.updatedDate || '-')}</div>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <label style="font-size:0.8em;color:#666;">หมดอายุ:</label>
+                  <input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.8em;">
+                </div>
                 ${d.driveFileId ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="btn btn-sm btn-secondary" target="_blank">ดาวน์โหลด</a>` : ''}
                 <label class="btn btn-sm btn-secondary" style="position:relative;overflow:hidden;">
                   อัปโหลดใหม่
                   <input type="file" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
                 </label>
                 ${d.driveFileId ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}')">ลบ</button>` : ''}
-              </div>
-            `).join('')}
+              </div>`;
+            }).join('')}
           </div>
 
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee;">
             <h4 style="font-size:0.9em;color:#666;margin-bottom:8px;">เพิ่มเอกสารใหม่</h4>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="text" id="newDocName" placeholder="ชื่อเอกสาร" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" id="newDocName" placeholder="ชื่อเอกสาร" style="flex:1;min-width:120px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;">
+              <input type="date" id="newDocExpiry" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;" title="วันหมดอายุ (ถ้ามี)">
               <input type="file" id="newDocFile" style="font-size:0.85em;">
               <button class="btn btn-sm btn-primary" onclick="uploadNewDoc('${escHtml(sheet)}')">อัปโหลด</button>
             </div>
@@ -1106,6 +1152,51 @@
       if (!res?.success) throw new Error('save shareholders failed');
     }
 
+    // ===== Expiry helpers =====
+    function getExpiryStatus(expiryDateStr) {
+      if (!expiryDateStr) return null;
+      const trimmed = expiryDateStr.trim();
+      let expiry = null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        expiry = new Date(trimmed + 'T00:00:00');
+      } else {
+        const match = trimmed.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+        if (match) expiry = new Date(match[3] + '-' + match[2].padStart(2,'0') + '-' + match[1].padStart(2,'0') + 'T00:00:00');
+      }
+      if (!expiry || isNaN(expiry.getTime())) return null;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const diff = Math.ceil((expiry.getTime() - today.getTime()) / (1000*60*60*24));
+      if (diff < 0) return 'expired';
+      if (diff <= 7) return 'expiring-7d';
+      if (diff <= 30) return 'expiring-30d';
+      return 'ok';
+    }
+
+    function getExpiryBadgeHtml(status) {
+      if (status === 'expired') return '<span class="badge badge-red">หมดอายุแล้ว</span>';
+      if (status === 'expiring-7d') return '<span class="badge badge-orange">หมดอายุใน 7 วัน</span>';
+      if (status === 'expiring-30d') return '<span class="badge badge-yellow">หมดอายุใน 30 วัน</span>';
+      return '';
+    }
+
+    function expiryToInputValue(expiryDateStr) {
+      if (!expiryDateStr) return '';
+      const trimmed = expiryDateStr.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      const match = trimmed.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+      if (match) return match[3] + '-' + match[2].padStart(2,'0') + '-' + match[1].padStart(2,'0');
+      return '';
+    }
+
+    async function saveExpiryDate(sheet, docName, value) {
+      const res = await api('/documents/' + encodeURIComponent(sheet) + '/expiry', {
+        method: 'PUT',
+        body: JSON.stringify({ documentName: docName, expiryDate: value }),
+      });
+      if (res?.success) toast('บันทึกวันหมดอายุสำเร็จ');
+      else toast('เกิดข้อผิดพลาด');
+    }
+
     // ===== Documents =====
     async function uploadDocForName(sheet, docName, input) {
       if (!input.files.length) return;
@@ -1126,6 +1217,7 @@
     async function uploadNewDoc(sheet) {
       const nameInput = document.getElementById('newDocName');
       const fileInput = document.getElementById('newDocFile');
+      const expiryInput = document.getElementById('newDocExpiry');
       const docName = nameInput?.value?.trim();
       if (!docName) { toast('กรุณาใส่ชื่อเอกสาร'); return; }
       if (!fileInput?.files?.length) { toast('เลือกไฟล์ก่อน'); return; }
@@ -1133,6 +1225,7 @@
       const form = new FormData();
       form.append('file', fileInput.files[0]);
       form.append('documentName', docName);
+      if (expiryInput?.value) form.append('expiryDate', expiryInput.value);
       toast('กำลังอัปโหลด...');
       const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
       const data = await res.json();

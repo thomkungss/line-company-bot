@@ -25,6 +25,7 @@ export interface CompanyDocument {
   type?: string; // e.g. "หนังสือรับรอง", "บอจ.5"
   driveUrl?: string;
   updatedDate?: string; // วัน update ล่าสุด
+  expiryDate?: string; // วันหมดอายุ
 }
 
 export interface Company {
