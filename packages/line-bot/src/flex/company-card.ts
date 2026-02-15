@@ -234,14 +234,6 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
     });
   }
 
-  // Build shareholder text for right column: "1. ชื่อ 99%\n2. ชื่อ 1%"
-  const shareholderText = company.shareholders.length > 0
-    ? company.shareholders.slice(0, 5).map(s => {
-        const pct = s.percentage ? ` ${s.percentage}%` : '';
-        return `${s.order}. ${s.name}${pct}`;
-      }).join('\n') + (company.shareholders.length > 5 ? `\n...อีก ${company.shareholders.length - 5} คน` : '')
-    : '-';
-
   bodyContents.push(
     { type: 'separator', margin: 'md' },
     // Capital
@@ -254,16 +246,33 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
       ],
       margin: 'md',
     },
-    // Shareholders — horizontal layout like ทุนจดทะเบียน
+    // Shareholders count
     {
       type: 'box',
       layout: 'horizontal',
       contents: [
         { type: 'text', text: 'ผู้ถือหุ้น', size: 'sm', color: '#999999', flex: 4 },
-        { type: 'text', text: shareholderText, size: 'sm', color: '#333333', flex: 6, wrap: true },
+        { type: 'text', text: company.shareholders.length > 0 ? `${company.shareholders.length} คน` : '-', size: 'sm', color: '#333333', flex: 6 },
       ],
       margin: 'sm',
     },
+    // Shareholder list
+    ...company.shareholders.slice(0, 5).map(s => ({
+      type: 'box' as const,
+      layout: 'horizontal' as const,
+      contents: [
+        { type: 'text' as const, text: `${s.order}. ${s.name}`, size: 'xs' as const, color: '#333333', flex: 6, wrap: true },
+        { type: 'text' as const, text: s.percentage ? `${s.percentage}%` : '-', size: 'xs' as const, color: '#333333', flex: 2, align: 'end' as const },
+      ],
+      margin: 'sm' as const,
+    })),
+    ...(company.shareholders.length > 5 ? [{
+      type: 'text' as const,
+      text: `...และอีก ${company.shareholders.length - 5} คน`,
+      size: 'xs' as const,
+      color: '#999999',
+      margin: 'sm' as const,
+    }] : []),
     { type: 'separator', margin: 'md' },
     // Address
     {
@@ -318,68 +327,30 @@ export function buildCompanyDetailFlex(company: Company): FlexMessage {
     },
     footer: {
       type: 'box',
-      layout: 'vertical',
+      layout: 'horizontal',
       contents: [
         {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'button',
-              action: {
-                type: 'postback',
-                label: 'ผู้ถือหุ้น',
-                data: `action=shareholders&company=${encodeURIComponent(company.sheetName)}`,
-              },
-              style: 'primary',
-              color: '#1DB446',
-              height: 'sm',
-              flex: 1,
-            },
-            {
-              type: 'button',
-              action: {
-                type: 'postback',
-                label: 'เอกสาร',
-                data: `action=documents&company=${encodeURIComponent(company.sheetName)}`,
-              },
-              style: 'primary',
-              color: '#17A2B8',
-              height: 'sm',
-              flex: 1,
-            },
-          ],
-          spacing: 'sm',
+          type: 'button',
+          action: {
+            type: 'postback',
+            label: 'เอกสาร',
+            data: `action=documents&company=${encodeURIComponent(company.sheetName)}`,
+          },
+          style: 'primary',
+          color: '#17A2B8',
+          height: 'sm',
+          flex: 1,
         },
         {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'button',
-              action: {
-                type: 'postback',
-                label: 'ประวัติเปลี่ยนแปลง',
-                data: `action=history&company=${encodeURIComponent(company.sheetName)}`,
-              },
-              style: 'secondary',
-              height: 'sm',
-              flex: 1,
-            },
-            {
-              type: 'button',
-              action: {
-                type: 'uri',
-                label: 'ดูเพิ่มเติม',
-                uri: `https://liff.line.me/${config.liffId}/company-detail.html?company=${encodeURIComponent(company.sheetName)}`,
-              },
-              style: 'secondary',
-              height: 'sm',
-              flex: 1,
-            },
-          ],
-          spacing: 'sm',
-          margin: 'sm',
+          type: 'button',
+          action: {
+            type: 'uri',
+            label: 'ดูเพิ่มเติม',
+            uri: `https://liff.line.me/${config.liffId}/company-detail.html?company=${encodeURIComponent(company.sheetName)}`,
+          },
+          style: 'secondary',
+          height: 'sm',
+          flex: 1,
         },
       ],
       paddingAll: '15px',

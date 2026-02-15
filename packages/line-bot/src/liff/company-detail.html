@@ -21,13 +21,34 @@
     .table th { background: #f8f8f8; padding: 8px; text-align: left; font-weight: 600; color: #666; }
     .table td { padding: 8px; border-bottom: 1px solid #f0f0f0; }
     .table tr:nth-child(even) { background: #fafafa; }
-    .doc-link { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
-    .doc-link:last-child { border-bottom: none; }
-    .doc-link .name { flex: 1; font-size: 0.9em; }
-    .doc-link a { color: #17A2B8; font-size: 0.85em; }
+    .table .text-right { text-align: right; }
+    .doc-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .doc-item:last-child { border-bottom: none; }
+    .doc-item .doc-name { font-size: 0.9em; color: #333; }
+    .doc-item .doc-meta { font-size: 0.75em; color: #17A2B8; margin-top: 2px; }
+    .doc-item .doc-actions { margin-top: 6px; display: flex; gap: 8px; }
+    .doc-item .doc-actions a { color: white; background: #17A2B8; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; text-decoration: none; }
+    .doc-item .doc-actions a.secondary { background: #6c757d; }
     .seal-img { max-width: 200px; margin: 10px auto; display: block; }
     .loading { text-align: center; padding: 40px; color: #999; }
     .error { text-align: center; padding: 40px; color: #e74c3c; }
+    .sh-bar { display: flex; align-items: center; margin-bottom: 6px; }
+    .sh-bar .sh-name { font-size: 0.85em; color: #333; flex: 1; }
+    .sh-bar .sh-pct { font-size: 0.85em; color: #1DB446; font-weight: 600; width: 50px; text-align: right; }
+    .sh-bar-track { height: 6px; background: #eee; border-radius: 3px; margin-bottom: 10px; }
+    .sh-bar-fill { height: 100%; background: #1DB446; border-radius: 3px; }
+    .sh-detail { font-size: 0.75em; color: #999; margin-top: -8px; margin-bottom: 10px; }
+    .timeline { position: relative; padding-left: 20px; }
+    .timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: #e0e0e0; }
+    .timeline-item { position: relative; padding-bottom: 16px; }
+    .timeline-item::before { content: ''; position: absolute; left: -17px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #1DB446; border: 2px solid white; box-shadow: 0 0 0 2px #1DB446; }
+    .timeline-item .tl-date { font-size: 0.75em; color: #999; }
+    .timeline-item .tl-field { font-size: 0.85em; color: #333; font-weight: 600; margin-top: 2px; }
+    .timeline-item .tl-change { font-size: 0.8em; margin-top: 4px; }
+    .timeline-item .tl-old { color: #e74c3c; }
+    .timeline-item .tl-new { color: #1DB446; }
+    .timeline-item .tl-by { font-size: 0.75em; color: #aaa; margin-top: 2px; }
+    .empty-msg { text-align: center; color: #999; font-size: 0.85em; padding: 20px 0; }
   </style>
 </head>
 <body>
@@ -45,11 +66,20 @@
     const companyName = params.get('company') || '';
     const apiBase = window.location.origin;
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
     async function loadData() {
       try {
-        const res = await fetch(`${apiBase}/api/liff/company/${encodeURIComponent(companyName)}`);
-        if (!res.ok) throw new Error('Failed to load');
-        const c = await res.json();
+        const [companyRes, versionsRes] = await Promise.all([
+          fetch(`${apiBase}/api/liff/company/${encodeURIComponent(companyName)}`),
+          fetch(`${apiBase}/api/liff/versions/${encodeURIComponent(companyName)}`),
+        ]);
+        if (!companyRes.ok) throw new Error('Failed to load');
+        const c = await companyRes.json();
+        const versions = versionsRes.ok ? await versionsRes.json() : [];
 
         document.getElementById('companyName').textContent = c.companyNameTh || c.sheetName;
         document.getElementById('companyNameEn').textContent = c.companyNameEn || '';
@@ -59,11 +89,11 @@
 
         // Basic info
         html += `<div class="section"><h3>ข้อมูลทั่วไป</h3>
-          <div class="field"><span class="label">เลขทะเบียน</span><span class="value">${c.registrationNumber || '-'}</span></div>
-          <div class="field"><span class="label">ทุนจดทะเบียน</span><span class="value">${c.capitalText || c.registeredCapital?.toLocaleString() + ' บาท' || '-'}</span></div>
-          <div class="field"><span class="label">อำนาจกรรมการ</span><span class="value">${c.authorizedSignatory || '-'}</span></div>
-          <div class="field"><span class="label">ที่อยู่</span><span class="value">${c.headOfficeAddress || '-'}</span></div>
-          <div class="field"><span class="label">วัตถุประสงค์</span><span class="value">${c.objectives || '-'}</span></div>
+          <div class="field"><span class="label">เลขทะเบียน</span><span class="value">${escapeHtml(c.registrationNumber) || '-'}</span></div>
+          <div class="field"><span class="label">ทุนจดทะเบียน</span><span class="value">${c.capitalText || (c.registeredCapital ? c.registeredCapital.toLocaleString() + ' บาท' : '-')}</span></div>
+          <div class="field"><span class="label">อำนาจกรรมการ</span><span class="value">${escapeHtml(c.authorizedSignatory) || '-'}</span></div>
+          <div class="field"><span class="label">ที่อยู่</span><span class="value">${escapeHtml(c.headOfficeAddress) || '-'}</span></div>
+          <div class="field"><span class="label">วัตถุประสงค์</span><span class="value">${escapeHtml(c.objectives) || '-'}</span></div>
         </div>`;
 
         // Seal image
@@ -77,27 +107,74 @@
         if (c.directors && c.directors.length) {
           html += `<div class="section"><h3>กรรมการ (${c.directors.length} คน)</h3><table class="table">
             <tr><th>#</th><th>ชื่อ</th><th>ตำแหน่ง</th></tr>
-            ${c.directors.map((d, i) => `<tr><td>${i+1}</td><td>${d.name}</td><td>${d.position || '-'}</td></tr>`).join('')}
+            ${c.directors.map((d, i) => `<tr><td>${i+1}</td><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.position) || '-'}</td></tr>`).join('')}
           </table></div>`;
         }
 
-        // Shareholders
+        // Shareholders — detailed
         if (c.shareholders && c.shareholders.length) {
-          html += `<div class="section"><h3>ผู้ถือหุ้น (${c.shareholders.length} คน)</h3><table class="table">
-            <tr><th>#</th><th>ชื่อ</th><th>หุ้น</th><th>%</th></tr>
-            ${c.shareholders.map(s => `<tr><td>${s.order}</td><td>${s.name}</td><td>${s.shares?.toLocaleString()}</td><td>${s.percentage || '-'}%</td></tr>`).join('')}
-          </table></div>`;
+          const totalShares = c.shareholders.reduce((sum, s) => sum + (s.shares || 0), 0);
+          html += `<div class="section"><h3>ผู้ถือหุ้น (${c.shareholders.length} คน)</h3>`;
+          c.shareholders.forEach(s => {
+            const pct = s.percentage || 0;
+            html += `<div class="sh-bar">
+              <span class="sh-name">${s.order}. ${escapeHtml(s.name)}</span>
+              <span class="sh-pct">${pct ? pct + '%' : '-'}</span>
+            </div>
+            <div class="sh-bar-track"><div class="sh-bar-fill" style="width:${Math.min(pct, 100)}%"></div></div>
+            <div class="sh-detail">${s.shares ? s.shares.toLocaleString() + ' หุ้น' : ''}</div>`;
+          });
+          if (totalShares > 0) {
+            html += `<div style="font-size:0.8em;color:#999;border-top:1px solid #eee;padding-top:8px;margin-top:4px;">
+              รวมทั้งหมด ${totalShares.toLocaleString()} หุ้น
+            </div>`;
+          }
+          html += `</div>`;
         }
 
         // Documents
         if (c.documents && c.documents.length) {
           html += `<div class="section"><h3>เอกสาร (${c.documents.length} รายการ)</h3>
-            ${c.documents.map(d => `<div class="doc-link"><span class="name">${d.name}</span>
-              ${d.driveFileId ? `<a href="${apiBase}/api/download/${d.driveFileId}" target="_blank">ดาวน์โหลด</a>` :
-              d.driveUrl ? `<a href="${d.driveUrl}" target="_blank">เปิด</a>` : ''}
-            </div>`).join('')}
+            ${c.documents.map(d => {
+              let actions = '';
+              if (d.driveFileId) {
+                actions = `<a href="${apiBase}/api/view/${d.driveFileId}" target="_blank">ดู PDF</a>
+                  <a href="${apiBase}/api/download/${d.driveFileId}" target="_blank" class="secondary">ดาวน์โหลด</a>`;
+              } else if (d.driveUrl) {
+                actions = `<a href="${d.driveUrl}" target="_blank">เปิด</a>`;
+              }
+              return `<div class="doc-item">
+                <div class="doc-name">${escapeHtml(d.name)}</div>
+                ${d.updatedDate ? `<div class="doc-meta">อัปเดต: ${escapeHtml(d.updatedDate)}</div>` : d.type ? `<div class="doc-meta">${escapeHtml(d.type)}</div>` : ''}
+                <div class="doc-actions">${actions}</div>
+              </div>`;
+            }).join('')}
           </div>`;
         }
+
+        // Version History
+        html += `<div class="section"><h3>ประวัติการเปลี่ยนแปลง</h3>`;
+        if (versions.length > 0) {
+          html += `<div class="timeline">`;
+          versions.slice(0, 20).forEach(v => {
+            html += `<div class="timeline-item">
+              <div class="tl-date">${escapeHtml(v.timestamp)}</div>
+              <div class="tl-field">${escapeHtml(v.fieldChanged)}</div>
+              <div class="tl-change">
+                ${v.oldValue ? `<span class="tl-old">${escapeHtml(v.oldValue)}</span> → ` : ''}
+                <span class="tl-new">${escapeHtml(v.newValue)}</span>
+              </div>
+              ${v.changedBy ? `<div class="tl-by">โดย ${escapeHtml(v.changedBy)}</div>` : ''}
+            </div>`;
+          });
+          html += `</div>`;
+          if (versions.length > 20) {
+            html += `<div style="text-align:center;font-size:0.8em;color:#999;margin-top:8px;">แสดง 20 จาก ${versions.length} รายการ</div>`;
+          }
+        } else {
+          html += `<div class="empty-msg">ยังไม่มีประวัติการเปลี่ยนแปลง</div>`;
+        }
+        html += `</div>`;
 
         document.getElementById('content').innerHTML = html;
       } catch (err) {
