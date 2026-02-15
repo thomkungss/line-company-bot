@@ -19,6 +19,11 @@ app.post(
 // JSON parser for other routes
 app.use(express.json());
 
+// Dynamic LIFF config — exposes LIFF_ID to frontend
+app.get('/liff/env.js', (_req, res) => {
+  res.type('application/javascript').send(`window.LIFF_ID="${config.liffId}";`);
+});
+
 // Static LIFF pages
 app.use('/liff', express.static(path.join(__dirname, 'liff')));
 

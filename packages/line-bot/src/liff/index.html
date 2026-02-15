@@ -25,15 +25,14 @@
   <div class="container">
     <div id="content" class="loading">กำลังโหลด...</div>
   </div>
+  <script src="/liff/env.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const LIFF_ID = new URLSearchParams(window.location.search).get('liffId') || '';
     async function init() {
       try {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
+        const liffId = window.LIFF_ID || '';
+        if (liffId) {
+          await liff.init({ liffId });
         }
         document.getElementById('content').innerHTML = `
           <div class="card">
@@ -42,7 +41,13 @@
           </div>
         `;
       } catch (err) {
-        document.getElementById('content').innerHTML = '<p>เกิดข้อผิดพลาด</p>';
+        console.error('LIFF init error:', err);
+        document.getElementById('content').innerHTML = `
+          <div class="card">
+            <h3>ยินดีต้อนรับ</h3>
+            <p>เลือกเมนูจากแชทเพื่อดูข้อมูลบริษัท</p>
+          </div>
+        `;
       }
     }
     init();
