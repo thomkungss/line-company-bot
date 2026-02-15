@@ -328,8 +328,8 @@
           <td>${c.directorCount || 0}</td>
           <td>${c.shareholderCount || 0}</td>
           <td style="white-space:nowrap;">
-            <button class="btn btn-sm btn-secondary" onclick="goViewCompany('${escHtml(c.sheetName)}')" title="ดูข้อมูล">&#128065;</button>
-            <button class="btn btn-sm btn-primary" onclick="goEditCompany('${escHtml(c.sheetName)}')" title="แก้ไข">&#9998;</button>
+            <button class="btn btn-sm btn-secondary" onclick="goViewCompany('${escHtml(c.sheetName)}')">View</button>
+            <button class="btn btn-sm btn-primary" onclick="goEditCompany('${escHtml(c.sheetName)}')">Edit</button>
           </td>
         </tr>
       `).join('');
