@@ -91,10 +91,15 @@
     /* Loading */
     .loading { text-align: center; padding: 40px; color: #999; }
 
-    /* Toast */
-    .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 200; display: none; font-size: 0.9em; }
-    .toast.show { display: block; animation: fadeIn 0.3s; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    /* Toast — center popup */
+    .toast-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 300; background: rgba(0,0,0,0.3); }
+    .toast-overlay.show { display: flex; animation: fadeIn 0.2s; }
+    .toast-box { background: white; border-radius: 16px; padding: 32px 40px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.15); min-width: 280px; }
+    .toast-icon { font-size: 2.5em; margin-bottom: 8px; }
+    .toast-icon.success { color: #1DB446; }
+    .toast-icon.error { color: #e74c3c; }
+    .toast-msg { font-size: 1.05em; color: #333; font-weight: 500; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
     /* Chat log */
     .chat-bubble { padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; font-size: 0.85em; }
@@ -242,8 +247,13 @@
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="toast" id="toast"></div>
+  <!-- Toast Popup -->
+  <div class="toast-overlay" id="toastOverlay" onclick="this.classList.remove('show')">
+    <div class="toast-box" onclick="event.stopPropagation()">
+      <div class="toast-icon" id="toastIcon"></div>
+      <div class="toast-msg" id="toastMsg"></div>
+    </div>
+  </div>
 
   <script>
     // ===== Navigation =====
@@ -276,10 +286,15 @@
     }
 
     function toast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 3000);
+      const overlay = document.getElementById('toastOverlay');
+      const icon = document.getElementById('toastIcon');
+      const msgEl = document.getElementById('toastMsg');
+      const isError = msg.includes('ผิดพลาด') || msg.includes('error') || msg.includes('ไม่');
+      icon.textContent = isError ? '\u2716' : '\u2714';
+      icon.className = 'toast-icon ' + (isError ? 'error' : 'success');
+      msgEl.textContent = msg;
+      overlay.classList.add('show');
+      setTimeout(() => overlay.classList.remove('show'), 2000);
     }
 
     function fmt(n) { return n ? n.toLocaleString('th-TH') : '-'; }
