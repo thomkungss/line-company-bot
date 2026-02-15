@@ -31,8 +31,13 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     const sheet: string = req.params.sheet as string;
     const documentName: string = (req.body.documentName || '').toString().trim();
 
+    // Prefix filename with company name
+    const ext = req.file.originalname.includes('.') ? req.file.originalname.substring(req.file.originalname.lastIndexOf('.')) : '';
+    const baseName = documentName || req.file.originalname.replace(/\.[^.]+$/, '');
+    const driveName = `${sheet} - ${baseName}${ext}`;
+
     const fileMetadata = {
-      name: req.file.originalname,
+      name: driveName,
       parents: folderId ? [folderId] : undefined,
       description: `Document for ${sheet}`,
     };
