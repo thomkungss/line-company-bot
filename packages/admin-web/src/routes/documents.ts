@@ -18,6 +18,8 @@ async function getOrCreateCompanyFolder(drive: any, rootFolderId: string, compan
   const searchRes = await drive.files.list({
     q: `name='${companyName.replace(/'/g, "\\'")}' and '${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id,name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
   const existing = searchRes.data.files;
   if (existing && existing.length > 0) {
@@ -33,6 +35,7 @@ async function getOrCreateCompanyFolder(drive: any, rootFolderId: string, compan
       parents: [rootFolderId],
     },
     fields: 'id',
+    supportsAllDrives: true,
   });
   const folderId = folderRes.data.id;
   companyFolderCache.set(companyName, folderId);
@@ -90,6 +93,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       requestBody: fileMetadata,
       media,
       fields: 'id,name,webViewLink',
+      supportsAllDrives: true,
     });
 
     const fileId = (driveRes as any).data.id;
@@ -128,7 +132,7 @@ documentsRouter.delete('/:fileId', async (req: Request, res: Response) => {
   try {
     const drive = getDriveClient();
     const fileId: string = req.params.fileId as string;
-    await drive.files.delete({ fileId });
+    await drive.files.delete({ fileId, supportsAllDrives: true });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -141,12 +145,12 @@ documentsRouter.get('/download/:fileId', async (req: Request, res: Response) => 
     const drive = getDriveClient();
     const fileId: string = req.params.fileId as string;
 
-    const meta = await drive.files.get({ fileId, fields: 'mimeType,name' });
+    const meta = await drive.files.get({ fileId, fields: 'mimeType,name', supportsAllDrives: true });
     const mimeType = (meta as any).data?.mimeType || 'application/octet-stream';
     const fileName = (meta as any).data?.name || 'document';
 
     const fileRes = await drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', supportsAllDrives: true },
       { responseType: 'stream' }
     );
 
