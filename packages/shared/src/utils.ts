@@ -8,9 +8,11 @@ export function formatMoney(n: number): string {
   return `${formatNumber(n)} บาท`;
 }
 
-/** Parse Thai-formatted number: "1,000,000" → 1000000 */
+/** Parse Thai-formatted number: "1,000,000 บาท" → 1000000 */
 export function parseThaiNumber(s: string): number {
-  return Number(s.replace(/,/g, '').replace(/\s/g, '')) || 0;
+  // Strip commas, Thai text (บาท, หุ้น, คน), and whitespace
+  const cleaned = s.replace(/,/g, '').replace(/[^\d.-]/g, '');
+  return Number(cleaned) || 0;
 }
 
 /** Get current timestamp in Thai timezone ISO string */

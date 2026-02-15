@@ -164,35 +164,52 @@ function parseShareholders(rows: SheetRow[]): Shareholder[] {
     if (labelCell && !labelCell.match(/^\d+\.?$/) && labelCell !== '-'
       && !labelCell.includes('ลำดับ') && labelCell.length > 2
       && !labelCell.match(/^\d+$/)) {
-      // Check if it's a section header
       const looksLikeHeader = ['เอกสาร', 'ตราประทับ', 'วัตถุ', 'ที่ตั้ง', 'หมายเหตุ'].some(
         h => labelCell.includes(h)
       );
       if (looksLikeHeader) break;
     }
 
-    // Try to find name and shares
+    // Try to find name
     const nameCell = (rows[i][1] || rows[i][0] || '').toString().trim();
-    const sharesCell = (rows[i][2] || rows[i][3] || '').toString().trim();
-
     if (!nameCell || nameCell === '-' || nameCell === 'ลำดับ' || nameCell === 'ชื่อ') continue;
 
-    const shares = parseThaiNumber(sharesCell);
-    if (nameCell && (shares > 0 || nameCell.length > 1)) {
+    // Scan all columns for percentage (%) and shares (หุ้น or large number)
+    let percentage = 0;
+    let shares = 0;
+    for (let c = 2; c < (rows[i].length || 0); c++) {
+      const cell = (rows[i][c] || '').toString().trim();
+      if (!cell || cell === '-' || cell === 'คิดเป็นอัตราส่วน') continue;
+      if (cell.includes('%')) {
+        // e.g. "99%", "1%"
+        percentage = parseThaiNumber(cell);
+      } else if (cell.includes('หุ้น') || (parseThaiNumber(cell) >= 1 && !cell.includes('คิด'))) {
+        const num = parseThaiNumber(cell);
+        if (num > 0 && num > percentage) {
+          shares = num;
+        }
+      }
+    }
+
+    if (nameCell && (shares > 0 || percentage > 0 || nameCell.length > 1)) {
       shareholders.push({
         order: order++,
         name: nameCell.replace(/^\d+\.?\s*/, ''),
         shares,
+        percentage: percentage || undefined,
       });
     }
   }
 
-  // Calculate percentages
-  const totalShares = shareholders.reduce((sum, s) => sum + s.shares, 0);
-  if (totalShares > 0) {
-    shareholders.forEach(s => {
-      s.percentage = Math.round((s.shares / totalShares) * 10000) / 100;
-    });
+  // Calculate percentages if not provided in sheet
+  const hasPercentage = shareholders.some(s => s.percentage);
+  if (!hasPercentage) {
+    const totalShares = shareholders.reduce((sum, s) => sum + s.shares, 0);
+    if (totalShares > 0) {
+      shareholders.forEach(s => {
+        s.percentage = Math.round((s.shares / totalShares) * 10000) / 100;
+      });
+    }
   }
 
   return shareholders;

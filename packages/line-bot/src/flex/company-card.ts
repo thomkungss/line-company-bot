@@ -91,14 +91,20 @@ export function buildCompanySelectionCarousel(companies: Company[]): FlexMessage
           weight: 'bold',
           margin: 'sm',
         },
-        ...company.shareholders.slice(0, 5).map(s => ({
-          type: 'box' as const,
-          layout: 'horizontal' as const,
-          contents: [
-            { type: 'text' as const, text: `• ${s.name}`, size: 'xxs' as const, color: '#555555', flex: 6, wrap: true },
-            { type: 'text' as const, text: s.percentage ? `${s.percentage}%` : `${formatNumber(s.shares)} หุ้น`, size: 'xxs' as const, color: '#17A2B8', flex: 2, align: 'end' as const },
-          ],
-        })),
+        ...company.shareholders.slice(0, 5).flatMap(s => {
+          const detail = [
+            s.percentage ? `${s.percentage}%` : '',
+            s.shares > 0 ? `${formatNumber(s.shares)} หุ้น` : '',
+          ].filter(Boolean).join(' | ');
+          return [{
+            type: 'box' as const,
+            layout: 'vertical' as const,
+            contents: [
+              { type: 'text' as const, text: `• ${s.name}`, size: 'xxs' as const, color: '#555555', wrap: true },
+              ...(detail ? [{ type: 'text' as const, text: `  ${detail}`, size: 'xxs' as const, color: '#17A2B8' }] : []),
+            ],
+          }];
+        }),
         ...(company.shareholders.length > 5 ? [{
           type: 'text' as const,
           text: `...และอีก ${company.shareholders.length - 5} คน`,
