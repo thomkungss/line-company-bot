@@ -220,8 +220,8 @@
     .vt-item::before { content: ''; position: absolute; left: -17px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #dc2626; border: 2px solid white; box-shadow: 0 0 0 2px #dc2626; }
     .vt-item .vt-date { font-size: 0.75em; color: #9ca3af; }
     .vt-item .vt-field { font-size: 0.85em; color: #374151; font-weight: 600; margin-top: 2px; }
-    .vt-item .vt-old { color: #ef4444; font-size: 0.8em; }
-    .vt-item .vt-new { color: #dc2626; font-size: 0.8em; }
+    .vt-item .vt-old { color: #dc2626; font-size: 0.8em; }
+    .vt-item .vt-new { color: #2563eb; font-size: 0.8em; }
     .vt-item .vt-by { font-size: 0.75em; color: #9ca3af; margin-top: 2px; }
   </style>
 </head>
@@ -757,7 +757,7 @@
           html += `<div class="vt-item">
             <div class="vt-date">${escHtml(v.timestamp)}</div>
             <div class="vt-field">${escHtml(v.fieldChanged)}</div>
-            <div>${v.oldValue ? `<span class="vt-old">${escHtml(v.oldValue)}</span> → ` : ''}<span class="vt-new">${escHtml(v.newValue)}</span></div>
+            <div><span class="vt-new">${escHtml(v.newValue || '-')}</span>${v.oldValue ? ` ← <span class="vt-old">${escHtml(v.oldValue)}</span>` : ''}</div>
             ${v.changedBy ? `<div class="vt-by">โดย ${escHtml(v.changedBy)}</div>` : ''}
           </div>`;
         });
@@ -1403,13 +1403,13 @@
       if (!versions.length) { el.innerHTML = '<p style="color:#999;">ไม่พบประวัติการเปลี่ยนแปลง</p>'; return; }
       el.innerHTML = versions.slice(0, 50).map(v => `
         <div class="timeline-item">
-          <div style="display:flex;justify-content:space-between;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
             <span class="field">${escHtml(v.fieldChanged)} <span class="badge badge-blue">${escHtml(v.companySheet)}</span></span>
             <span class="date">${escHtml(v.timestamp)}</span>
           </div>
           <div class="diff">
-            <div class="old">เดิม: ${escHtml(v.oldValue || '-')}</div>
             <div class="new">ใหม่: ${escHtml(v.newValue || '-')}</div>
+            <div class="old">เดิม: ${escHtml(v.oldValue || '-')}</div>
           </div>
           <div class="date" style="margin-top:4px;">โดย: ${escHtml(v.changedBy || '-')}</div>
         </div>
