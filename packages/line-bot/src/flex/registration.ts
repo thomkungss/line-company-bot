@@ -1,4 +1,5 @@
-import { FlexMessage, FlexBubble } from '@line/bot-sdk';
+import { FlexMessage, FlexBubble, FlexComponent } from '@line/bot-sdk';
+import { UserPermission } from '@company-bot/shared';
 
 /** Flex message prompting unregistered user to register via LIFF */
 export function buildRegistrationPrompt(liffId: string): FlexMessage {
@@ -498,6 +499,105 @@ export function buildApprovalRequest(
   return {
     type: 'flex',
     altText: `มีผู้สมัครใหม่: ${displayName}`,
+    contents: bubble,
+  };
+}
+
+/** Flex message showing user's permission summary */
+export function buildPermissionSummary(perm: UserPermission): FlexMessage {
+  const accessibleCompanies = Object.entries(perm.companies)
+    .filter(([, v]) => v)
+    .map(([name]) => name);
+
+  const roleLabel: Record<string, string> = {
+    super_admin: 'ผู้ดูแลระบบ',
+    admin: 'แอดมิน',
+    viewer: 'ผู้ใช้ทั่วไป',
+  };
+
+  const companyItems: FlexComponent[] = accessibleCompanies.map(name => ({
+    type: 'box' as const,
+    layout: 'horizontal' as const,
+    contents: [
+      { type: 'text' as const, text: '•', size: 'sm' as const, color: '#1DB446', flex: 0 },
+      { type: 'text' as const, text: name, size: 'sm' as const, color: '#333333', flex: 1, wrap: true },
+    ],
+    spacing: 'sm' as const,
+  }));
+
+  const bubble: FlexBubble = {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'text',
+          text: `สวัสดี, ${perm.displayName}`,
+          weight: 'bold',
+          size: 'lg',
+          color: '#FFFFFF',
+        },
+        {
+          type: 'text',
+          text: roleLabel[perm.role] || perm.role,
+          size: 'xs',
+          color: '#FFFFFFCC',
+          margin: 'sm',
+        },
+      ],
+      backgroundColor: '#1DB446',
+      paddingAll: '20px',
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        // สิทธิ์การใช้งาน
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            { type: 'text', text: 'ดูเอกสาร', size: 'sm', color: '#999999', flex: 4 },
+            { type: 'text', text: perm.canViewDocuments ? 'ได้' : 'ไม่ได้', size: 'sm', color: perm.canViewDocuments ? '#1DB446' : '#E74C3C', flex: 3, align: 'end', weight: 'bold' },
+          ],
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            { type: 'text', text: 'โหลดเอกสาร', size: 'sm', color: '#999999', flex: 4 },
+            { type: 'text', text: perm.canDownloadDocuments ? 'ได้' : 'ไม่ได้', size: 'sm', color: perm.canDownloadDocuments ? '#1DB446' : '#E74C3C', flex: 3, align: 'end', weight: 'bold' },
+          ],
+          margin: 'sm',
+        },
+        { type: 'separator', margin: 'lg' },
+        // บริษัทที่เข้าถึงได้
+        {
+          type: 'text',
+          text: `บริษัทที่เข้าถึงได้ (${accessibleCompanies.length})`,
+          size: 'sm',
+          color: '#1DB446',
+          weight: 'bold',
+          margin: 'lg',
+        },
+        ...(companyItems.length > 0 ? companyItems : [{
+          type: 'text' as const,
+          text: 'ไม่มี',
+          size: 'sm' as const,
+          color: '#999999',
+          margin: 'sm' as const,
+        }]),
+      ],
+      paddingAll: '20px',
+      spacing: 'sm',
+    },
+  };
+
+  return {
+    type: 'flex',
+    altText: `สิทธิ์ของคุณ: เข้าถึง ${accessibleCompanies.length} บริษัท`,
     contents: bubble,
   };
 }
