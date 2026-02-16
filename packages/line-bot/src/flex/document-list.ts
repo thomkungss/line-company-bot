@@ -27,90 +27,130 @@ export function buildDocumentList(company: Company, options: DocListOptions = {}
 
   const docItems: any[] = docs.slice(0, 10).flatMap((doc, i) => {
     const expiryStatus = getDocumentExpiryStatus(doc.expiryDate);
-    const infoContents: any[] = [
-      { type: 'text', text: doc.name, size: 'sm', color: '#333333', wrap: true },
-    ];
-    if (doc.updatedDate) {
-      infoContents.push({ type: 'text', text: `อัปเดต: ${doc.updatedDate}`, size: 'xxs', color: '#17A2B8' });
-    } else if (doc.type) {
-      infoContents.push({ type: 'text', text: doc.type, size: 'xxs', color: '#999999' });
+    const items: any[] = [];
+
+    if (i > 0) {
+      items.push({ type: 'separator', margin: 'lg' });
     }
+
+    // Document name
+    const cardContents: any[] = [
+      {
+        type: 'text',
+        text: doc.name,
+        size: 'md',
+        color: '#111111',
+        weight: 'bold',
+        wrap: true,
+      },
+    ];
+
+    // Meta info line (date or type)
+    if (doc.updatedDate) {
+      cardContents.push({
+        type: 'text',
+        text: `อัปเดต ${doc.updatedDate}`,
+        size: 'xs',
+        color: '#8C8C8C',
+        margin: 'sm',
+      });
+    } else if (doc.type) {
+      cardContents.push({
+        type: 'text',
+        text: doc.type,
+        size: 'xs',
+        color: '#8C8C8C',
+        margin: 'sm',
+      });
+    }
+
+    // Expiry badge
     if (doc.expiryDate) {
       const statusLabel = expiryStatus === 'expired' ? 'หมดอายุแล้ว'
-        : expiryStatus === 'expiring-7d' ? 'หมดอายุใน 7 วัน'
+        : expiryStatus === 'expiring-7d' ? 'ใกล้หมดอายุ'
         : expiryStatus === 'expiring-30d' ? 'หมดอายุใน 30 วัน'
         : null;
-      const statusColor = expiryStatus === 'expired' ? '#DC3545'
+      const badgeBg = expiryStatus === 'expired' ? '#FDEDED'
+        : expiryStatus === 'expiring-7d' ? '#FFF3E0'
+        : expiryStatus === 'expiring-30d' ? '#FFFDE7'
+        : '#F5F5F5';
+      const badgeColor = expiryStatus === 'expired' ? '#D32F2F'
         : expiryStatus === 'expiring-7d' ? '#E65100'
         : expiryStatus === 'expiring-30d' ? '#F57F17'
         : '#999999';
-      infoContents.push({
-        type: 'text',
-        text: statusLabel ? `หมดอายุ: ${doc.expiryDate} (${statusLabel})` : `หมดอายุ: ${doc.expiryDate}`,
-        size: 'xxs',
-        color: statusColor,
+
+      cardContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        contents: [
+          {
+            type: 'text',
+            text: statusLabel ? `${doc.expiryDate} · ${statusLabel}` : doc.expiryDate,
+            size: 'xxs',
+            color: badgeColor,
+            flex: 0,
+          },
+        ],
+        backgroundColor: badgeBg,
+        cornerRadius: 'md',
+        paddingAll: '4px',
+        paddingStart: '8px',
+        paddingEnd: '8px',
+        margin: 'sm',
       });
     }
-    const items: any[] = [];
-    if (i > 0) {
-      items.push({ type: 'separator', margin: 'md' });
-    }
+
+    // Action buttons row
     const hasDriveFile = doc.driveFileId && !doc.driveFileId.startsWith('http');
-    const buttons: any[] = [];
+    const actionButtons: any[] = [];
 
     if (hasDriveFile) {
-      buttons.push({
+      actionButtons.push({
         type: 'button',
         action: { type: 'uri', label: 'ดู PDF', uri: `${config.baseUrl}/api/view/${doc.driveFileId}` },
         style: 'primary',
-        color: '#17A2B8',
+        color: '#0D99FF',
         height: 'sm',
+        flex: 1,
       });
       if (canDownloadDocuments) {
-        buttons.push({
+        actionButtons.push({
           type: 'button',
-          action: { type: 'uri', label: 'โหลด', uri: `${config.baseUrl}/api/download/${doc.driveFileId}` },
+          action: { type: 'uri', label: 'ดาวน์โหลด', uri: `${config.baseUrl}/api/download/${doc.driveFileId}` },
           style: 'secondary',
           height: 'sm',
+          flex: 1,
         });
       }
     } else if (doc.driveUrl) {
-      buttons.push({
+      actionButtons.push({
         type: 'button',
-        action: { type: 'uri', label: 'เปิด', uri: doc.driveUrl },
+        action: { type: 'uri', label: 'เปิดลิงก์', uri: doc.driveUrl },
         style: 'primary',
-        color: '#17A2B8',
+        color: '#0D99FF',
         height: 'sm',
+        flex: 1,
       });
-    } else {
-      buttons.push({
-        type: 'button',
-        action: { type: 'postback', label: '-', data: 'action=noop' },
-        style: 'secondary',
-        height: 'sm',
+    }
+
+    if (actionButtons.length > 0) {
+      cardContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        contents: actionButtons,
+        spacing: 'sm',
+        margin: 'md',
       });
     }
 
     items.push({
       type: 'box',
-      layout: 'horizontal',
-      contents: [
-        {
-          type: 'box',
-          layout: 'vertical',
-          contents: infoContents,
-          flex: 5,
-        },
-        {
-          type: 'box',
-          layout: 'vertical',
-          contents: buttons,
-          flex: 3,
-          spacing: 'xs',
-        },
-      ],
-      margin: i === 0 ? 'none' : 'md',
+      layout: 'vertical',
+      contents: cardContents,
+      margin: i === 0 ? 'none' : 'lg',
+      paddingAll: '2px',
     });
+
     return items;
   });
 
@@ -122,32 +162,63 @@ export function buildDocumentList(company: Company, options: DocListOptions = {}
       layout: 'vertical',
       contents: [
         {
-          type: 'text',
-          text: `เอกสาร — ${company.companyNameTh}`,
-          weight: 'bold',
-          size: 'lg',
-          color: '#FFFFFF',
-          wrap: true,
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: 'เอกสาร',
+              weight: 'bold',
+              size: 'xl',
+              color: '#FFFFFF',
+              flex: 1,
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: `${docs.length}`,
+                  size: 'sm',
+                  color: '#0D99FF',
+                  align: 'center',
+                  weight: 'bold',
+                },
+              ],
+              backgroundColor: '#FFFFFF',
+              cornerRadius: 'xxl',
+              width: '28px',
+              height: '28px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flex: 0,
+            },
+          ],
+          alignItems: 'center',
         },
         {
           type: 'text',
-          text: `${docs.length} รายการ`,
+          text: company.companyNameTh,
           size: 'xs',
           color: '#FFFFFFCC',
+          wrap: true,
+          margin: 'sm',
         },
       ],
-      backgroundColor: '#17A2B8',
+      backgroundColor: '#0D99FF',
       paddingAll: '20px',
     },
     body: {
       type: 'box',
       layout: 'vertical',
       contents: docItems,
-      paddingAll: '15px',
+      paddingAll: '16px',
+      spacing: 'none',
     },
     footer: {
       type: 'box',
-      layout: 'horizontal',
+      layout: 'vertical',
       contents: [
         {
           type: 'button',
@@ -160,7 +231,7 @@ export function buildDocumentList(company: Company, options: DocListOptions = {}
           height: 'sm',
         },
       ],
-      paddingAll: '15px',
+      paddingAll: '16px',
     },
   };
 
