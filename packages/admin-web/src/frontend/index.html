@@ -1847,13 +1847,12 @@
         var id = 'p_' + name;
         var p = nodePos[id];
         var info = personMap[name];
-        var uniqueCompanies = new Set(info.relations.map(function(r) { return r.companyIdx; })).size;
         var shCount = info.relations.filter(function(r) { return r.role === 'shareholder'; }).length;
         var dirCount = info.relations.filter(function(r) { return r.role === 'director'; }).length;
         var roleParts = [];
         if (shCount > 0) roleParts.push('ถือหุ้น ' + shCount);
         if (dirCount > 0) roleParts.push('กรรมการ ' + dirCount);
-        var bodyLabel = roleParts.join(', ') + ' &middot; ' + uniqueCompanies + ' บริษัท';
+        var bodyLabel = roleParts.join(', ');
         html += '<div class="mapping-node mapping-node-person" data-node-id="' + escHtml(id) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + nodeW + 'px;" onmousedown="startDragNode(event,this)">' +
           '<div class="mn-header">' + escHtml(name) + '</div>' +
           '<div class="mn-body">' + bodyLabel + '</div>' +
