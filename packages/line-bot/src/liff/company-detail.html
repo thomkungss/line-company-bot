@@ -27,8 +27,9 @@
     .doc-item .doc-name { font-size: 0.9em; color: #333; }
     .doc-item .doc-meta { font-size: 0.75em; color: #17A2B8; margin-top: 2px; }
     .doc-item .doc-actions { margin-top: 6px; display: flex; gap: 8px; }
-    .doc-item .doc-actions a { color: white; background: #17A2B8; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; text-decoration: none; }
-    .doc-item .doc-actions a.secondary { background: #6c757d; }
+    .doc-item .doc-actions a, .doc-item .doc-actions button { color: white; background: #17A2B8; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; text-decoration: none; border: none; cursor: pointer; }
+    .doc-item .doc-actions a.secondary, .doc-item .doc-actions button.secondary { background: #6c757d; }
+    .doc-item .doc-actions button.dl-btn { background: #1DB446; }
     .seal-img { max-width: 200px; margin: 10px auto; display: block; }
     .loading { text-align: center; padding: 40px; color: #999; }
     .error { text-align: center; padding: 40px; color: #e74c3c; }
@@ -161,9 +162,10 @@
               let actions = '';
               if (d.driveFileId && !d.driveFileId.startsWith('http')) {
                 const viewerUrl = `/liff/doc-viewer.html?fileId=${encodeURIComponent(d.driveFileId)}&name=${encodeURIComponent(d.name)}`;
+                const fileId = encodeURIComponent(d.driveFileId);
                 actions = `<a href="${viewerUrl}">ดู PDF</a>`;
                 if (canDownload) {
-                  actions += `<a href="${viewerUrl}&mode=download" class="secondary">บันทึก</a>`;
+                  actions += `<button class="dl-btn" onclick="downloadOrPrint('${fileId}','${encodeURIComponent(d.name)}')">โหลด/ปริ้น</button>`;
                 }
               } else if (d.driveUrl) {
                 actions = `<a href="${d.driveUrl}" target="_blank">เปิด</a>`;
@@ -212,6 +214,33 @@
         document.getElementById('content').innerHTML = html;
       } catch (err) {
         document.getElementById('content').innerHTML = '<div class="error">ไม่สามารถโหลดข้อมูลได้</div>';
+      }
+    }
+
+    function isMobile() {
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    }
+
+    function downloadOrPrint(fileId, name) {
+      const viewUrl = `${apiBase}/api/view/${fileId}`;
+      const downloadUrl = `${apiBase}/api/download/${fileId}`;
+
+      if (isMobile()) {
+        // Mobile: open PDF in external browser for native print
+        if (typeof liff !== 'undefined' && liff.isInClient()) {
+          liff.openWindow({ url: viewUrl, external: true });
+        } else {
+          window.open(viewUrl, '_blank');
+        }
+      } else {
+        // Desktop: download file directly
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = decodeURIComponent(name);
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => document.body.removeChild(a), 1000);
       }
     }
 
