@@ -1,4 +1,4 @@
-import { Client, PostbackEvent } from '@line/bot-sdk';
+import { Client, PostbackEvent, FlexMessage } from '@line/bot-sdk';
 import { getUserPermission, getPermissions, updatePermissions, parseCompanySheet, getVersionHistory } from '@company-bot/shared';
 import { buildCompanyDetailFlex } from '../flex/company-card';
 import { buildDocumentList } from '../flex/document-list';
@@ -242,6 +242,40 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
         type: 'text',
         text: `อนุมัติสิทธิ์บริษัท ${pendingList.join(', ')} ให้ ${targetAccess.displayName} เรียบร้อยแล้ว`,
       });
+      break;
+    }
+
+    case 'list_all': {
+      const accessibleNames = Object.entries(perm.companies)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      if (accessibleNames.length === 0) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'คุณยังไม่มีสิทธิ์เข้าถึงบริษัทใด',
+        });
+        return;
+      }
+      const allCompanies = await Promise.all(
+        accessibleNames.map(n => parseCompanySheet(n).catch(() => null))
+      );
+      const validAll = allCompanies.filter(Boolean) as Awaited<ReturnType<typeof parseCompanySheet>>[];
+      const cardOpts = { canViewDocuments: perm.canViewDocuments };
+      if (validAll.length === 1) {
+        const detail = buildCompanyDetailFlex(validAll[0], cardOpts);
+        await client.replyMessage(event.replyToken, detail);
+      } else {
+        const bubbles = validAll.slice(0, 12).map(company => {
+          const msg = buildCompanyDetailFlex(company, cardOpts);
+          return (msg.contents as any);
+        });
+        const carousel: FlexMessage = {
+          type: 'flex',
+          altText: 'ข้อมูลบริษัททั้งหมด',
+          contents: { type: 'carousel', contents: bubbles },
+        };
+        await client.replyMessage(event.replyToken, carousel);
+      }
       break;
     }
 

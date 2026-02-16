@@ -515,12 +515,24 @@ export function buildPermissionSummary(perm: UserPermission): FlexMessage {
     viewer: 'ผู้ใช้ทั่วไป',
   };
 
-  const companyItems: FlexComponent[] = accessibleCompanies.map(name => ({
+  // Company list with document buttons
+  const companyRows: FlexComponent[] = accessibleCompanies.map(name => ({
     type: 'box' as const,
     layout: 'horizontal' as const,
     contents: [
-      { type: 'text' as const, text: '•', size: 'sm' as const, color: '#1DB446', flex: 0 },
-      { type: 'text' as const, text: name, size: 'sm' as const, color: '#333333', flex: 1, wrap: true },
+      { type: 'text' as const, text: name, size: 'sm' as const, color: '#333333', flex: 5, wrap: true, gravity: 'center' as const },
+      {
+        type: 'button' as const,
+        action: {
+          type: 'postback' as const,
+          label: 'เอกสาร',
+          data: `action=documents&company=${encodeURIComponent(name)}`,
+        },
+        style: 'primary' as const,
+        color: '#17A2B8',
+        height: 'sm' as const,
+        flex: 3,
+      },
     ],
     spacing: 'sm' as const,
   }));
@@ -582,7 +594,7 @@ export function buildPermissionSummary(perm: UserPermission): FlexMessage {
           weight: 'bold',
           margin: 'lg',
         },
-        ...(companyItems.length > 0 ? companyItems : [{
+        ...(companyRows.length > 0 ? companyRows : [{
           type: 'text' as const,
           text: 'ไม่มี',
           size: 'sm' as const,
@@ -592,6 +604,24 @@ export function buildPermissionSummary(perm: UserPermission): FlexMessage {
       ],
       paddingAll: '20px',
       spacing: 'sm',
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'button',
+          action: {
+            type: 'postback',
+            label: 'ดูข้อมูลบริษัททั้งหมด',
+            data: 'action=list_all',
+          },
+          style: 'primary',
+          color: '#1DB446',
+          height: 'sm',
+        },
+      ],
+      paddingAll: '15px',
     },
   };
 

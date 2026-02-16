@@ -1,9 +1,7 @@
-import { Client, MessageEvent, TextMessage, FlexMessage } from '@line/bot-sdk';
-import { getAccessibleCompanies, getUserPermission, parseCompanySheet } from '@company-bot/shared';
+import { Client, MessageEvent } from '@line/bot-sdk';
+import { getUserPermission } from '@company-bot/shared';
 import { handleCommand } from './command';
-import { buildCompanyDetailFlex } from '../flex/company-card';
 import { buildRegistrationPrompt, buildPendingApproval, buildNoCompanyAccess, buildPendingCompanyAccess, buildPermissionSummary } from '../flex/registration';
-import { handleAIChat } from '../services/claude';
 import { config } from '../config';
 
 export async function handleMessage(client: Client, event: MessageEvent): Promise<void> {
@@ -51,30 +49,7 @@ export async function handleMessage(client: Client, event: MessageEvent): Promis
     return;
   }
 
-  // Load company data and show detail cards
-  const companies = await Promise.all(
-    accessibleCompanies.map(name => parseCompanySheet(name).catch(() => null))
-  );
-  const validCompanies = companies.filter(Boolean) as Awaited<ReturnType<typeof parseCompanySheet>>[];
-
-  const cardOpts = { canViewDocuments: perm.canViewDocuments };
+  // Show permission summary with company buttons
   const summary = buildPermissionSummary(perm);
-
-  if (validCompanies.length === 1) {
-    // Single company → summary + detail card
-    const detail = buildCompanyDetailFlex(validCompanies[0], cardOpts);
-    await client.replyMessage(event.replyToken, [summary, detail]);
-  } else {
-    // Multiple companies → summary + carousel of detail cards
-    const bubbles = validCompanies.slice(0, 12).map(company => {
-      const msg = buildCompanyDetailFlex(company, cardOpts);
-      return (msg.contents as any);
-    });
-    const carousel: FlexMessage = {
-      type: 'flex',
-      altText: 'เลือกบริษัทที่ต้องการ',
-      contents: { type: 'carousel', contents: bubbles },
-    };
-    await client.replyMessage(event.replyToken, [summary, carousel]);
-  }
+  await client.replyMessage(event.replyToken, summary);
 }
