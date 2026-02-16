@@ -2137,30 +2137,44 @@
         var pid = 'p_' + name;
         var pp = nodePos[pid];
         if (!pp) return;
-        var sx = pp.x + nodeW / 2;
+        var baseSx = pp.x + nodeW / 2;
         var sy = pp.y + 58; // approx bottom of person node
 
+        // Group relations by companyIdx to detect overlapping lines
+        var byCompany = {};
         personMap[name].relations.forEach(function(r) {
           if (!ciSet[r.companyIdx]) return;
-          var cid = 'c_' + r.companyIdx;
+          if (!byCompany[r.companyIdx]) byCompany[r.companyIdx] = [];
+          byCompany[r.companyIdx].push(r);
+        });
+
+        Object.keys(byCompany).forEach(function(ciKey) {
+          var rels = byCompany[ciKey];
+          var cid = 'c_' + ciKey;
           var cp = nodePos[cid];
           if (!cp) return;
-          var ex = cp.x + nodeW / 2;
+          var baseEx = cp.x + nodeW / 2;
           var ey = cp.y; // top of company node
+          var offsetStep = 12;
 
-          var dy = (ey - sy);
-          var cp1y = sy + dy * 0.4;
-          var cp2y = sy + dy * 0.6;
-          var color = r.role === 'director' ? '#4a90d9' : '#999';
+          rels.forEach(function(r, idx) {
+            var offset = rels.length > 1 ? (idx - (rels.length - 1) / 2) * offsetStep : 0;
+            var sx = baseSx + offset;
+            var ex = baseEx + offset;
+            var dy = (ey - sy);
+            var cp1y = sy + dy * 0.4;
+            var cp2y = sy + dy * 0.6;
+            var color = r.role === 'director' ? '#4a90d9' : '#999';
 
-          paths += '<path d="M' + sx + ',' + sy + ' C' + sx + ',' + cp1y + ' ' + ex + ',' + cp2y + ' ' + ex + ',' + ey + '" fill="none" stroke="' + color + '" stroke-width="1.5" marker-end="url(#arrowMarker)" opacity="0.6"/>';
+            paths += '<path d="M' + sx + ',' + sy + ' C' + sx + ',' + cp1y + ' ' + ex + ',' + cp2y + ' ' + ex + ',' + ey + '" fill="none" stroke="' + color + '" stroke-width="1.5" marker-end="url(#arrowMarker)" opacity="0.6"/>';
 
-          // Label on the path
-          var mx = (sx + ex) / 2;
-          var my = (sy + ey) / 2;
-          if (r.label) {
-            paths += '<text x="' + mx + '" y="' + (my - 4) + '" text-anchor="middle" font-size="10" fill="' + color + '" font-family="sans-serif">' + escHtml(r.label) + '</text>';
-          }
+            // Label on the path
+            var mx = (sx + ex) / 2;
+            var my = (sy + ey) / 2;
+            if (r.label) {
+              paths += '<text x="' + mx + '" y="' + (my - 4) + '" text-anchor="middle" font-size="10" fill="' + color + '" font-family="sans-serif">' + escHtml(r.label) + '</text>';
+            }
+          });
         });
       });
 
@@ -2248,29 +2262,43 @@
           var cid = 'c_' + ci;
           var cp = nodePos[cid];
           if (!cp) return;
-          var sx = cp.x + nodeW / 2;
+          var baseSx = cp.x + nodeW / 2;
           var sy = cp.y + 58;
+
+          // Build per-person relation list to detect overlapping lines
+          var personRels = {};
           c.shareholders.forEach(function(s) {
             if (!s.name) return;
-            var pid = 'p_' + s.name;
-            var pp = nodePos[pid];
-            if (!pp) return;
-            var ex = pp.x + nodeW / 2; var ey = pp.y;
-            var dy = ey - sy; var cp1y = sy + dy * 0.4; var cp2y = sy + dy * 0.6;
-            paths += '<path d="M' + sx + ',' + sy + ' C' + sx + ',' + cp1y + ' ' + ex + ',' + cp2y + ' ' + ex + ',' + ey + '" fill="none" stroke="#999" stroke-width="1.5" marker-end="url(#arrowMarker)" opacity="0.6"/>';
-            var label = s.percentage ? s.percentage + '%' : '';
-            if (label) paths += '<text x="' + ((sx+ex)/2) + '" y="' + ((sy+ey)/2 - 4) + '" text-anchor="middle" font-size="10" fill="#999" font-family="sans-serif">' + escHtml(label) + '</text>';
+            if (!personRels[s.name]) personRels[s.name] = [];
+            personRels[s.name].push({ role: 'shareholder', label: s.percentage ? s.percentage + '%' : '' });
           });
           c.directors.forEach(function(d) {
             if (!d.name) return;
-            var pid = 'p_' + d.name;
+            if (!personRels[d.name]) personRels[d.name] = [];
+            personRels[d.name].push({ role: 'director', label: d.position || 'กรรมการ' });
+          });
+
+          var offsetStep = 12;
+          Object.keys(personRels).forEach(function(pName) {
+            var rels = personRels[pName];
+            var pid = 'p_' + pName;
             var pp = nodePos[pid];
             if (!pp) return;
-            var ex = pp.x + nodeW / 2; var ey = pp.y;
-            var dy = ey - sy; var cp1y = sy + dy * 0.4; var cp2y = sy + dy * 0.6;
-            paths += '<path d="M' + sx + ',' + sy + ' C' + sx + ',' + cp1y + ' ' + ex + ',' + cp2y + ' ' + ex + ',' + ey + '" fill="none" stroke="#4a90d9" stroke-width="1.5" marker-end="url(#arrowMarker)" opacity="0.6"/>';
-            var label = d.position || 'กรรมการ';
-            paths += '<text x="' + ((sx+ex)/2) + '" y="' + ((sy+ey)/2 - 4) + '" text-anchor="middle" font-size="10" fill="#4a90d9" font-family="sans-serif">' + escHtml(label) + '</text>';
+            var baseEx = pp.x + nodeW / 2; var ey = pp.y;
+
+            rels.forEach(function(r, idx) {
+              var offset = rels.length > 1 ? (idx - (rels.length - 1) / 2) * offsetStep : 0;
+              var sx = baseSx + offset;
+              var ex = baseEx + offset;
+              var dy = ey - sy; var cp1y = sy + dy * 0.4; var cp2y = sy + dy * 0.6;
+              var color = r.role === 'director' ? '#4a90d9' : '#999';
+              paths += '<path d="M' + sx + ',' + sy + ' C' + sx + ',' + cp1y + ' ' + ex + ',' + cp2y + ' ' + ex + ',' + ey + '" fill="none" stroke="' + color + '" stroke-width="1.5" marker-end="url(#arrowMarker)" opacity="0.6"/>';
+              if (r.label) {
+                var mx = (sx + ex) / 2;
+                var my = (sy + ey) / 2;
+                paths += '<text x="' + mx + '" y="' + (my - 4) + '" text-anchor="middle" font-size="10" fill="' + color + '" font-family="sans-serif">' + escHtml(r.label) + '</text>';
+              }
+            });
           });
         });
         svgEl.innerHTML = paths;
