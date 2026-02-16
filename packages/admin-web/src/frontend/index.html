@@ -1847,10 +1847,16 @@
         var id = 'p_' + name;
         var p = nodePos[id];
         var info = personMap[name];
-        var typeLabel = info.type === 'both' ? 'ผู้ถือหุ้น / กรรมการ' : (info.type === 'shareholder' ? 'ผู้ถือหุ้น' : 'กรรมการ');
+        var uniqueCompanies = new Set(info.relations.map(function(r) { return r.companyIdx; })).size;
+        var shCount = info.relations.filter(function(r) { return r.role === 'shareholder'; }).length;
+        var dirCount = info.relations.filter(function(r) { return r.role === 'director'; }).length;
+        var roleParts = [];
+        if (shCount > 0) roleParts.push('ถือหุ้น ' + shCount);
+        if (dirCount > 0) roleParts.push('กรรมการ ' + dirCount);
+        var bodyLabel = roleParts.join(', ') + ' &middot; ' + uniqueCompanies + ' บริษัท';
         html += '<div class="mapping-node mapping-node-person" data-node-id="' + escHtml(id) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + nodeW + 'px;" onmousedown="startDragNode(event,this)">' +
           '<div class="mn-header">' + escHtml(name) + '</div>' +
-          '<div class="mn-body">' + typeLabel + ' &middot; ' + info.relations.length + ' บริษัท</div>' +
+          '<div class="mn-body">' + bodyLabel + '</div>' +
           '</div>';
       });
       companyIdxArr.forEach(function(ci) {
@@ -1958,10 +1964,14 @@
         var id = 'p_' + name;
         var p = nodePos[id];
         var info = personSet[name];
-        var typeLabel = info.type === 'both' ? 'ผู้ถือหุ้น / กรรมการ' : (info.type === 'shareholder' ? 'ผู้ถือหุ้น' : 'กรรมการ');
+        var shC = info.roles.filter(function(r) { return r.role === 'shareholder'; }).length;
+        var diC = info.roles.filter(function(r) { return r.role === 'director'; }).length;
+        var parts = [];
+        if (shC > 0) parts.push('ถือหุ้น ' + shC);
+        if (diC > 0) parts.push('กรรมการ ' + diC);
         html += '<div class="mapping-node mapping-node-person" data-node-id="' + escHtml(id) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + nodeW + 'px;border-color:#666;" onmousedown="startDragNode(event,this)">' +
           '<div class="mn-header" style="background:#555;">' + escHtml(name) + '</div>' +
-          '<div class="mn-body">' + typeLabel + '</div>' +
+          '<div class="mn-body">' + parts.join(', ') + '</div>' +
           '</div>';
       });
       nodesEl.innerHTML = html;
