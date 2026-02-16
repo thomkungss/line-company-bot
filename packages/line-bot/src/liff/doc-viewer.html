@@ -2,48 +2,54 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>เอกสาร</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; height: 100vh; display: flex; flex-direction: column; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #EAEAEA; min-height: 100vh; display: flex; flex-direction: column; }
 
     .toolbar {
+      position: sticky; top: 0; z-index: 10;
       display: flex; align-items: center; gap: 8px;
       padding: 10px 14px;
       background: #fff;
-      border-bottom: 1px solid #e5e5e5;
-      flex-shrink: 0;
+      border-bottom: 1px solid #ddd;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
     .toolbar .doc-name {
-      flex: 1; font-size: 0.9em; font-weight: 600; color: #333;
+      flex: 1; font-size: 0.88em; font-weight: 600; color: #333;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .toolbar .btn {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 8px 14px; border-radius: 8px; font-size: 0.82em; font-weight: 600;
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 8px 14px; border-radius: 10px; font-size: 0.82em; font-weight: 600;
       text-decoration: none; border: none; cursor: pointer;
-      white-space: nowrap; flex-shrink: 0;
+      white-space: nowrap; flex-shrink: 0; transition: opacity 0.15s;
     }
-    .btn-download {
-      background: #0D99FF; color: #fff;
-    }
-    .btn-download:active { background: #0B7FD4; }
-    .btn-close {
-      background: #f0f0f0; color: #555;
-    }
-    .btn-close:active { background: #e0e0e0; }
+    .btn:active { opacity: 0.7; }
+    .btn-save { background: #0D99FF; color: #fff; }
+    .btn-close { background: #f0f0f0; color: #555; }
 
-    .viewer {
-      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    .page-info {
+      text-align: center; padding: 6px; font-size: 0.75em; color: #888; background: #EAEAEA;
+      position: sticky; top: 52px; z-index: 9;
     }
-    .viewer iframe {
-      flex: 1; border: none; width: 100%;
+
+    .pages {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0 80px;
+      gap: 8px;
+    }
+    .pages canvas {
+      display: block; width: 100%; max-width: 100%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      background: #fff;
     }
 
     .loading-screen {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #999; gap: 12px;
+      color: #999; gap: 12px; padding: 40px;
     }
     .spinner {
       width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #0D99FF;
@@ -52,14 +58,13 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .toast {
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px;
-      border-radius: 20px; font-size: 0.85em; z-index: 100;
-      opacity: 0; transition: opacity 0.3s;
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.82); color: #fff; padding: 10px 22px;
+      border-radius: 22px; font-size: 0.85em; z-index: 100;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
     .toast.show { opacity: 1; }
 
-    /* Download progress overlay */
     .dl-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.5); z-index: 50;
@@ -72,19 +77,30 @@
     }
     .dl-box .spinner { margin: 0 auto 12px; }
     .dl-box p { font-size: 0.9em; color: #555; }
+
+    /* Image viewer for non-PDF files */
+    .img-viewer {
+      flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 8px 0 80px; background: #EAEAEA;
+    }
+    .img-viewer img {
+      width: 100%; display: block; background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
   </style>
 </head>
 <body>
   <div class="toolbar">
     <div class="doc-name" id="docName">เอกสาร</div>
-    <button class="btn btn-download" id="btnDownload" onclick="downloadFile()">
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v12m0 0l-4-4m4 4l4-4M4 18h16"/></svg>
-      บันทึก
+    <button class="btn btn-save" id="btnSave" onclick="saveAsImage()">
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v12m0 0l-4-4m4 4l4-4M4 18h16"/></svg>
+      บันทึกรูป
     </button>
     <button class="btn btn-close" onclick="closePage()">ปิด</button>
   </div>
-
-  <div class="viewer" id="viewer">
+  <div id="pageInfo" class="page-info" style="display:none;"></div>
+  <div id="container">
     <div class="loading-screen" id="loadingScreen">
       <div class="spinner"></div>
       <div>กำลังโหลดเอกสาร...</div>
@@ -92,24 +108,32 @@
   </div>
 
   <div class="toast" id="toast"></div>
-
   <div class="dl-overlay" id="dlOverlay">
     <div class="dl-box">
       <div class="spinner"></div>
-      <p>กำลังบันทึกไฟล์...</p>
+      <p id="dlText">กำลังบันทึกรูปภาพ...</p>
     </div>
   </div>
 
   <script src="/liff/env.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
     const fileId = params.get('fileId') || '';
-    const mode = params.get('mode'); // 'download' for direct download
+    const mode = params.get('mode');
     const docName = params.get('name') || 'เอกสาร';
     const apiBase = window.location.origin;
+    let pdfDoc = null;
+    let renderedCanvases = [];
+    let isImageFile = false;
 
     document.getElementById('docName').textContent = docName;
+
+    // pdf.js worker
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -123,98 +147,181 @@
       window.close();
     }
 
-    // Detect OS
-    function getOS() {
-      const ua = navigator.userAgent;
-      if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
-      if (/android/i.test(ua)) return 'android';
-      return 'other';
+    // Render a single PDF page to a canvas at device-fitting width
+    async function renderPage(page, pageNum) {
+      const containerWidth = window.innerWidth;
+      const scale = (containerWidth * window.devicePixelRatio) / page.getViewport({ scale: 1 }).width;
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = containerWidth + 'px';
+      canvas.style.height = (viewport.height / window.devicePixelRatio) + 'px';
+      canvas.dataset.page = pageNum;
+
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      return canvas;
     }
 
-    async function downloadFile() {
-      if (!fileId) return;
-      const overlay = document.getElementById('dlOverlay');
-      overlay.classList.add('show');
+    async function loadPDF(url) {
+      const container = document.getElementById('container');
+      const loading = document.getElementById('loadingScreen');
+      const pageInfo = document.getElementById('pageInfo');
 
       try {
-        const os = getOS();
-        const downloadUrl = `${apiBase}/api/download/${encodeURIComponent(fileId)}`;
+        // Fetch the file first to check content type
+        const headRes = await fetch(url, { method: 'HEAD' });
+        const contentType = headRes.headers.get('content-type') || '';
 
-        // Try blob download (works on Android Chrome & some iOS webviews)
-        try {
-          const res = await fetch(downloadUrl);
-          if (!res.ok) throw new Error('fetch failed');
-          const blob = await res.blob();
-          const fileName = getFileNameFromResponse(res) || docName;
-
-          // Create blob URL and trigger download
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = fileName;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-
-          // Cleanup after delay
-          setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-            document.body.removeChild(a);
-          }, 3000);
-
-          overlay.classList.remove('show');
-          showToast('บันทึกไฟล์สำเร็จ');
+        // If it's an image, show as image directly
+        if (contentType.startsWith('image/')) {
+          isImageFile = true;
+          loading.style.display = 'none';
+          container.className = 'img-viewer';
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = docName;
+          img.onload = () => {};
+          container.innerHTML = '';
+          container.appendChild(img);
           return;
-        } catch (blobErr) {
-          console.warn('Blob download failed, trying external:', blobErr);
         }
 
-        // Fallback: open in external browser (system handles download)
-        overlay.classList.remove('show');
-        if (typeof liff !== 'undefined' && liff.isInClient()) {
-          liff.openWindow({ url: downloadUrl, external: true });
-          showToast('เปิดในเบราว์เซอร์เพื่อบันทึก');
-        } else {
-          window.open(downloadUrl, '_blank');
+        // Load as PDF
+        const pdf = await pdfjsLib.getDocument(url).promise;
+        pdfDoc = pdf;
+        const numPages = pdf.numPages;
+
+        loading.style.display = 'none';
+        container.className = 'pages';
+        container.innerHTML = '';
+        pageInfo.style.display = 'block';
+        pageInfo.textContent = `${numPages} หน้า`;
+
+        // Render all pages
+        renderedCanvases = [];
+        for (let i = 1; i <= numPages; i++) {
+          const page = await pdf.getPage(i);
+          const canvas = await renderPage(page, i);
+          container.appendChild(canvas);
+          renderedCanvases.push(canvas);
         }
       } catch (err) {
-        overlay.classList.remove('show');
-        showToast('ไม่สามารถบันทึกได้');
-        console.error(err);
+        console.error('PDF load error:', err);
+        // Fallback: show in iframe
+        loading.style.display = 'none';
+        container.style.flex = '1';
+        container.style.display = 'flex';
+        container.innerHTML = `<iframe src="${url}" style="flex:1;border:none;width:100%;"></iframe>`;
       }
     }
 
-    function getFileNameFromResponse(res) {
-      const cd = res.headers.get('content-disposition');
-      if (!cd) return null;
-      const match = cd.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
-      if (match) return decodeURIComponent(match[1].replace(/"/g, ''));
-      return null;
+    async function saveAsImage() {
+      const overlay = document.getElementById('dlOverlay');
+      const dlText = document.getElementById('dlText');
+      overlay.classList.add('show');
+
+      try {
+        if (isImageFile) {
+          // For image files, download the image directly
+          dlText.textContent = 'กำลังบันทึกรูปภาพ...';
+          const url = `${apiBase}/api/view/${encodeURIComponent(fileId)}`;
+          const res = await fetch(url);
+          const blob = await res.blob();
+          const ext = blob.type.includes('png') ? 'png' : 'jpg';
+          triggerBlobDownload(blob, `${docName}.${ext}`);
+          overlay.classList.remove('show');
+          showToast('บันทึกรูปภาพสำเร็จ');
+          return;
+        }
+
+        if (renderedCanvases.length === 0) {
+          overlay.classList.remove('show');
+          showToast('ไม่มีเอกสารให้บันทึก');
+          return;
+        }
+
+        if (renderedCanvases.length === 1) {
+          // Single page — save directly
+          dlText.textContent = 'กำลังบันทึกรูปภาพ...';
+          const blob = await canvasToBlob(renderedCanvases[0]);
+          triggerBlobDownload(blob, `${docName}.png`);
+          overlay.classList.remove('show');
+          showToast('บันทึกรูปภาพสำเร็จ');
+          return;
+        }
+
+        // Multiple pages — stitch into one tall image
+        dlText.textContent = `กำลังรวม ${renderedCanvases.length} หน้า...`;
+        const blob = await stitchPages(renderedCanvases);
+        triggerBlobDownload(blob, `${docName}.png`);
+        overlay.classList.remove('show');
+        showToast('บันทึกรูปภาพสำเร็จ');
+
+      } catch (err) {
+        console.error('Save error:', err);
+        overlay.classList.remove('show');
+
+        // Fallback: open view URL in external browser
+        try {
+          const url = `${apiBase}/api/view/${encodeURIComponent(fileId)}`;
+          if (typeof liff !== 'undefined' && liff.isInClient()) {
+            liff.openWindow({ url, external: true });
+            showToast('เปิดในเบราว์เซอร์เพื่อบันทึก');
+          } else {
+            window.open(url, '_blank');
+          }
+        } catch (e2) {
+          showToast('ไม่สามารถบันทึกได้');
+        }
+      }
     }
 
-    function loadViewer() {
-      const viewer = document.getElementById('viewer');
-      const viewUrl = `${apiBase}/api/view/${encodeURIComponent(fileId)}`;
+    function canvasToBlob(canvas) {
+      return new Promise((resolve) => {
+        canvas.toBlob(blob => resolve(blob), 'image/png');
+      });
+    }
 
-      // Use iframe for PDF viewing
-      const iframe = document.createElement('iframe');
-      iframe.src = viewUrl;
-      iframe.style.flex = '1';
-      iframe.style.border = 'none';
-      iframe.style.width = '100%';
-      iframe.onload = () => {
-        document.getElementById('loadingScreen').style.display = 'none';
-      };
-      // Also hide loading after timeout (iframe onload may not fire for PDFs)
+    async function stitchPages(canvases) {
+      // Calculate total height and max width
+      const maxWidth = Math.max(...canvases.map(c => c.width));
+      const totalHeight = canvases.reduce((sum, c) => sum + c.height, 0);
+
+      const stitched = document.createElement('canvas');
+      stitched.width = maxWidth;
+      stitched.height = totalHeight;
+      const ctx = stitched.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, maxWidth, totalHeight);
+
+      let y = 0;
+      for (const c of canvases) {
+        const x = Math.floor((maxWidth - c.width) / 2);
+        ctx.drawImage(c, x, y);
+        y += c.height;
+      }
+
+      return canvasToBlob(stitched);
+    }
+
+    function triggerBlobDownload(blob, fileName) {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
       setTimeout(() => {
-        document.getElementById('loadingScreen').style.display = 'none';
+        URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(a);
       }, 3000);
-
-      viewer.appendChild(iframe);
     }
 
     (async () => {
-      // Init LIFF
       try {
         const liffId = window.LIFF_ID || '';
         if (liffId) await liff.init({ liffId });
@@ -228,13 +335,16 @@
         return;
       }
 
-      // If mode=download, trigger download immediately
+      const viewUrl = `${apiBase}/api/view/${encodeURIComponent(fileId)}`;
+
       if (mode === 'download') {
-        await downloadFile();
+        // Direct save mode
+        await loadPDF(viewUrl);
+        await saveAsImage();
         return;
       }
 
-      loadViewer();
+      await loadPDF(viewUrl);
     })();
   </script>
 </body>
