@@ -799,6 +799,7 @@ export async function createCompanySheet(sheetName: string): Promise<{ driveFold
           parents: [parentFolderId],
         },
         fields: 'id',
+        supportsAllDrives: true,
       });
       driveFolderId = (folderRes as any).data.id;
     }

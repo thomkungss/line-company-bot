@@ -11,12 +11,12 @@ driveProxyRouter.get('/seal/:fileId', async (req: Request, res: Response) => {
     const fileId: string = req.params.fileId as string;
 
     // Get file metadata for content type
-    const meta = await drive.files.get({ fileId, fields: 'mimeType,name' });
+    const meta = await drive.files.get({ fileId, fields: 'mimeType,name', supportsAllDrives: true });
     const mimeType = (meta as any).data?.mimeType || 'image/png';
 
     // Download file content
     const fileRes = await drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', supportsAllDrives: true },
       { responseType: 'stream' }
     );
 
@@ -36,7 +36,7 @@ driveProxyRouter.get('/view/:fileId', async (req: Request, res: Response) => {
     const fileId: string = req.params.fileId as string;
 
     // Get file metadata
-    const meta = await drive.files.get({ fileId, fields: 'mimeType,name' });
+    const meta = await drive.files.get({ fileId, fields: 'mimeType,name', supportsAllDrives: true });
     const mimeType = (meta as any).data?.mimeType || 'application/pdf';
     const fileName = (meta as any).data?.name || 'document';
 
@@ -56,7 +56,7 @@ driveProxyRouter.get('/view/:fileId', async (req: Request, res: Response) => {
       res.setHeader('Content-Type', 'application/pdf');
     } else {
       fileRes = await drive.files.get(
-        { fileId, alt: 'media' },
+        { fileId, alt: 'media', supportsAllDrives: true },
         { responseType: 'stream' }
       );
       res.setHeader('Content-Type', mimeType);
@@ -78,13 +78,13 @@ driveProxyRouter.get('/download/:fileId', async (req: Request, res: Response) =>
     const fileId: string = req.params.fileId as string;
 
     // Get file metadata
-    const meta = await drive.files.get({ fileId, fields: 'mimeType,name,size' });
+    const meta = await drive.files.get({ fileId, fields: 'mimeType,name,size', supportsAllDrives: true });
     const mimeType = (meta as any).data?.mimeType || 'application/octet-stream';
     const fileName = (meta as any).data?.name || 'document';
 
     // Download file content
     const fileRes = await drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', supportsAllDrives: true },
       { responseType: 'stream' }
     );
 

@@ -54,6 +54,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
         body: Readable.from(req.file.buffer),
       },
       fields: 'id',
+      supportsAllDrives: true,
     });
     const driveFileId = (driveRes as any).data?.id;
     if (!driveFileId) throw new Error('Drive upload failed — no file ID returned');
@@ -62,6 +63,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     await drive.permissions.create({
       fileId: driveFileId,
       requestBody: { role: 'reader', type: 'anyone' },
+      supportsAllDrives: true,
     });
 
     const fileUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
