@@ -90,6 +90,31 @@
     .perm-grid { overflow-x: auto; }
     .perm-grid table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 
+    /* Company view modes */
+    .view-toggle { display: inline-flex; gap: 4px; background: #f0f0f0; border-radius: 8px; padding: 3px; }
+    .view-toggle button { border: none; background: transparent; padding: 6px 14px; border-radius: 6px; font-size: 0.82em; cursor: pointer; color: #666; font-weight: 500; }
+    .view-toggle button.active { background: #1DB446; color: white; }
+
+    /* Table view */
+    .company-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.88em; }
+    .company-table th { background: #f8f9fa; padding: 10px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e9ecef; position: sticky; top: 0; }
+    .company-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+    .company-table tr:hover td { background: #f8fdf9; }
+    .company-table tr { cursor: pointer; }
+
+    /* Grid/box view */
+    .company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .company-box { background: white; border: 1px solid #e9ecef; border-radius: 12px; padding: 16px; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+    .company-box:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: #1DB446; }
+    .company-box .box-name { font-weight: 700; font-size: 0.95em; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .company-box .box-name-en { font-size: 0.78em; color: #999; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .company-box .box-reg { font-size: 0.75em; color: #155724; background: #d4edda; display: inline-block; padding: 2px 8px; border-radius: 10px; margin-bottom: 10px; }
+    .company-box .box-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.8em; }
+    .company-box .box-stat { background: #f8f9fa; border-radius: 6px; padding: 6px 8px; text-align: center; }
+    .company-box .box-stat .num { font-weight: 700; font-size: 1.1em; color: #333; }
+    .company-box .box-stat .lbl { color: #999; font-size: 0.85em; }
+    .company-box .box-footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+
     /* Loading */
     .loading { text-align: center; padding: 40px; color: #999; }
 
@@ -248,7 +273,12 @@
     <div id="page-companies" class="page">
       <div class="topbar">
         <h1>บริษัท</h1>
-        <div class="actions">
+        <div class="actions" style="display:flex;gap:10px;align-items:center;">
+          <div class="view-toggle" id="companyViewToggle">
+            <button class="active" data-cview="list" onclick="setCompanyView('list')">&#9776; รายการ</button>
+            <button data-cview="table" onclick="setCompanyView('table')">&#9638; ตาราง</button>
+            <button data-cview="grid" onclick="setCompanyView('grid')">&#9643; กล่อง</button>
+          </div>
           <button class="btn btn-primary" onclick="openCreateCompanyModal()">+ เพิ่มบริษัทใหม่</button>
           <button class="btn btn-secondary" onclick="openCSVModal()">&#8593; อัปโหลด CSV</button>
         </div>
@@ -743,28 +773,79 @@
     });
 
     // ===== Companies List =====
+    var companyViewMode = 'list';
+    function setCompanyView(mode) {
+      companyViewMode = mode;
+      document.querySelectorAll('#companyViewToggle button').forEach(function(b) { b.classList.toggle('active', b.dataset.cview === mode); });
+      renderCompanyList();
+    }
+
     async function loadCompanies() {
       if (!companiesData.length) companiesData = await api('/companies') || [];
-      const el = document.getElementById('companyList');
-      el.style.display = 'block';
-      el.innerHTML = companiesData.map(c => `
-        <div class="card company-card" onclick="loadCompanyDetail('${escHtml(c.sheetName)}')">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div>
-              <strong>${escHtml(c.companyNameTh || c.sheetName)}</strong>
-              <span style="color:#999;font-size:0.85em;margin-left:8px;">${escHtml(c.companyNameEn || '')}</span>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <span class="badge badge-green">${escHtml(c.registrationNumber || '-')}</span>
-              <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany('${escHtml(c.sheetName)}')">ลบ</button>
-            </div>
-          </div>
-          <div style="margin-top:8px;font-size:0.85em;color:#666;">
-            ทุน: ${fmt(c.registeredCapital)} | กรรมการ: ${c.directorCount || 0} คน | ผู้ถือหุ้น: ${c.shareholderCount || 0} คน | เอกสาร: ${c.documentCount || 0}
-          </div>
-        </div>
-      `).join('');
+      renderCompanyList();
       document.getElementById('companyDetail').style.display = 'none';
+    }
+
+    function renderCompanyList() {
+      var el = document.getElementById('companyList');
+      el.style.display = 'block';
+      var data = companiesData;
+
+      if (companyViewMode === 'table') {
+        el.innerHTML = '<table class="company-table"><thead><tr>' +
+          '<th>ชื่อบริษัท</th><th>ชื่ออังกฤษ</th><th>เลขทะเบียน</th><th>ทุน</th><th>กรรมการ</th><th>ผู้ถือหุ้น</th><th>เอกสาร</th><th></th>' +
+          '</tr></thead><tbody>' +
+          data.map(function(c) {
+            return '<tr onclick="loadCompanyDetail(\'' + escHtml(c.sheetName) + '\')">' +
+              '<td><strong>' + escHtml(c.companyNameTh || c.sheetName) + '</strong></td>' +
+              '<td style="color:#999;font-size:0.88em;">' + escHtml(c.companyNameEn || '-') + '</td>' +
+              '<td><span class="badge badge-green">' + escHtml(c.registrationNumber || '-') + '</span></td>' +
+              '<td>' + fmt(c.registeredCapital) + '</td>' +
+              '<td style="text-align:center;">' + (c.directorCount || 0) + '</td>' +
+              '<td style="text-align:center;">' + (c.shareholderCount || 0) + '</td>' +
+              '<td style="text-align:center;">' + (c.documentCount || 0) + '</td>' +
+              '<td><button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany(\'' + escHtml(c.sheetName) + '\')">ลบ</button></td>' +
+              '</tr>';
+          }).join('') +
+          '</tbody></table>';
+
+      } else if (companyViewMode === 'grid') {
+        el.innerHTML = '<div class="company-grid">' +
+          data.map(function(c) {
+            return '<div class="company-box" onclick="loadCompanyDetail(\'' + escHtml(c.sheetName) + '\')">' +
+              '<div class="box-name">' + escHtml(c.companyNameTh || c.sheetName) + '</div>' +
+              '<div class="box-name-en">' + escHtml(c.companyNameEn || '') + '</div>' +
+              (c.registrationNumber ? '<div class="box-reg">' + escHtml(c.registrationNumber) + '</div>' : '') +
+              '<div style="font-size:0.82em;color:#666;margin-bottom:8px;">ทุน: ' + fmt(c.registeredCapital) + '</div>' +
+              '<div class="box-stats">' +
+                '<div class="box-stat"><div class="num">' + (c.directorCount || 0) + '</div><div class="lbl">กรรมการ</div></div>' +
+                '<div class="box-stat"><div class="num">' + (c.shareholderCount || 0) + '</div><div class="lbl">ผู้ถือหุ้น</div></div>' +
+              '</div>' +
+              '<div class="box-footer"><button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany(\'' + escHtml(c.sheetName) + '\')">ลบ</button></div>' +
+              '</div>';
+          }).join('') +
+          '</div>';
+
+      } else {
+        // List view (default)
+        el.innerHTML = data.map(function(c) {
+          return '<div class="card company-card" onclick="loadCompanyDetail(\'' + escHtml(c.sheetName) + '\')">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+              '<div>' +
+                '<strong>' + escHtml(c.companyNameTh || c.sheetName) + '</strong>' +
+                '<span style="color:#999;font-size:0.85em;margin-left:8px;">' + escHtml(c.companyNameEn || '') + '</span>' +
+              '</div>' +
+              '<div style="display:flex;gap:8px;align-items:center;">' +
+                '<span class="badge badge-green">' + escHtml(c.registrationNumber || '-') + '</span>' +
+                '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany(\'' + escHtml(c.sheetName) + '\')">ลบ</button>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:8px;font-size:0.85em;color:#666;">' +
+              'ทุน: ' + fmt(c.registeredCapital) + ' | กรรมการ: ' + (c.directorCount || 0) + ' คน | ผู้ถือหุ้น: ' + (c.shareholderCount || 0) + ' คน | เอกสาร: ' + (c.documentCount || 0) +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
     }
 
     // ===== Delete Company =====
@@ -914,7 +995,10 @@
             <h4 style="font-size:0.9em;color:#666;margin-bottom:8px;">เพิ่มเอกสารใหม่</h4>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <input type="text" id="newDocName" placeholder="ชื่อเอกสาร" style="flex:1;min-width:120px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;">
-              <input type="date" id="newDocExpiry" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;" title="วันหมดอายุ (ถ้ามี)">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <label for="newDocExpiry" style="font-size:0.75em;color:#999;">วันหมดอายุเอกสาร</label>
+                <input type="date" id="newDocExpiry" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;" title="วันหมดอายุ (ถ้ามี)">
+              </div>
               <input type="file" id="newDocFile" style="font-size:0.85em;">
               <button class="btn btn-sm btn-primary" onclick="uploadNewDoc('${escHtml(sheet)}')">อัปโหลด</button>
             </div>
