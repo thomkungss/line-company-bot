@@ -373,6 +373,18 @@
     </div>
   </div>
 
+  <!-- Logout Confirm Modal -->
+  <div class="modal-overlay" id="logoutModal">
+    <div class="modal" style="max-width:400px;">
+      <h3>ออกจากระบบ</h3>
+      <p style="margin-bottom:16px;">คุณต้องการออกจากระบบหรือไม่?</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
+        <button class="btn btn-danger" id="confirmLogoutBtn">ออกจากระบบ</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete Confirm Modal -->
   <div class="modal-overlay" id="deleteCompanyModal">
     <div class="modal">
@@ -447,8 +459,12 @@
       });
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+    document.getElementById('logoutBtn').addEventListener('click', function(e) {
       e.preventDefault();
+      document.getElementById('logoutModal').classList.add('show');
+    });
+
+    document.getElementById('confirmLogoutBtn').addEventListener('click', async function() {
       await fetch('/api/logout', { method: 'POST' });
       window.location.href = '/login';
     });
