@@ -104,7 +104,7 @@
     .mapping-node-company { background: white; border: 1.5px solid #ddd; }
     .mapping-node-company .mn-header { padding: 8px 14px; font-weight: 600; font-size: 0.82em; color: #333; border-bottom: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     .mapping-node-company .mn-body { padding: 6px 14px 8px; font-size: 0.78em; color: #888; }
-    .mapping-popup { position: absolute; z-index: 100; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); min-width: 280px; max-width: 380px; font-size: 0.85em; overflow: hidden; }
+    .mapping-popup { position: fixed; z-index: 1000; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); min-width: 280px; max-width: 380px; font-size: 0.85em; overflow: hidden; }
     .mapping-popup-header { padding: 12px 16px; font-weight: 700; color: white; display: flex; justify-content: space-between; align-items: center; }
     .mapping-popup-header.person { background: #1DB446; }
     .mapping-popup-header.company { background: #333; }
@@ -302,9 +302,9 @@
             </defs>
           </svg>
           <div id="mappingNodes" style="position:relative;z-index:2;"></div>
-          <div id="mappingPopup" class="mapping-popup" style="display:none;"></div>
         </div>
       </div>
+      <div id="mappingPopup" class="mapping-popup" style="display:none;"></div>
     </div>
   </div>
 
@@ -1630,6 +1630,7 @@
       // Ctrl/Cmd + scroll = zoom, plain scroll = pan
       canvas.addEventListener('wheel', function(e) {
         e.preventDefault();
+        closeMappingPopup();
         if (e.ctrlKey || e.metaKey) {
           // Zoom toward mouse
           var rect = canvas.getBoundingClientRect();
@@ -2082,12 +2083,22 @@
       }
 
       popup.innerHTML = html;
-      // Position popup next to the node
-      var x = parseInt(nodeEl.style.left) + 190;
-      var y = parseInt(nodeEl.style.top);
-      popup.style.left = x + 'px';
-      popup.style.top = y + 'px';
+      // Position popup next to the node using screen coordinates
+      var nodeRect = nodeEl.getBoundingClientRect();
+      var popupX = nodeRect.right + 8;
+      var popupY = nodeRect.top;
+      // Keep popup within viewport
       popup.style.display = 'block';
+      var popupRect = popup.getBoundingClientRect();
+      if (popupX + popupRect.width > window.innerWidth - 16) {
+        popupX = nodeRect.left - popupRect.width - 8;
+      }
+      if (popupY + popupRect.height > window.innerHeight - 16) {
+        popupY = window.innerHeight - popupRect.height - 16;
+      }
+      if (popupY < 16) popupY = 16;
+      popup.style.left = popupX + 'px';
+      popup.style.top = popupY + 'px';
     }
 
     function closeMappingPopup() {
