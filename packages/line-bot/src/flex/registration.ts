@@ -525,8 +525,8 @@ export function buildPermissionSummary(perm: UserPermission): FlexMessage {
         type: 'button' as const,
         action: {
           type: 'postback' as const,
-          label: 'เอกสาร',
-          data: `action=documents&company=${encodeURIComponent(name)}`,
+          label: 'ดูข้อมูล',
+          data: `action=detail&company=${encodeURIComponent(name)}`,
         },
         style: 'primary' as const,
         color: '#17A2B8',
