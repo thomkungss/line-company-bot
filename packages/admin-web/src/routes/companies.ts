@@ -93,6 +93,8 @@ companiesRouter.post('/bulk', async (req: Request, res: Response) => {
     const results: { sheetName: string; success: boolean; error?: string }[] = [];
     let created = 0;
 
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     for (const c of companies) {
       const sheetName = (c.sheetName || '').trim();
       if (!sheetName) {
@@ -148,6 +150,9 @@ companiesRouter.post('/bulk', async (req: Request, res: Response) => {
       } catch (err: any) {
         results.push({ sheetName, success: false, error: err.message });
       }
+
+      // Delay between companies to avoid Google API rate limits
+      await delay(500);
     }
 
     // Auto-update permissions sheet to include new company columns

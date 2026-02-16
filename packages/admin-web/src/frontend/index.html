@@ -104,6 +104,20 @@
     .mapping-node-company { background: white; border: 1.5px solid #ddd; }
     .mapping-node-company .mn-header { padding: 8px 14px; font-weight: 600; font-size: 0.82em; color: #333; border-bottom: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     .mapping-node-company .mn-body { padding: 6px 14px 8px; font-size: 0.78em; color: #888; }
+    .mapping-popup { position: absolute; z-index: 100; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); min-width: 280px; max-width: 380px; font-size: 0.85em; overflow: hidden; }
+    .mapping-popup-header { padding: 12px 16px; font-weight: 700; color: white; display: flex; justify-content: space-between; align-items: center; }
+    .mapping-popup-header.person { background: #1DB446; }
+    .mapping-popup-header.company { background: #333; }
+    .mapping-popup-close { cursor: pointer; font-size: 1.2em; opacity: 0.7; background: none; border: none; color: white; padding: 0 4px; }
+    .mapping-popup-close:hover { opacity: 1; }
+    .mapping-popup-body { padding: 8px 0; max-height: 70vh; overflow-y: auto; }
+    .mapping-popup-row { padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; }
+    .mapping-popup-row:last-child { border-bottom: none; }
+    .mapping-popup-row .mp-name { font-weight: 500; color: #333; flex: 1; margin-right: 8px; }
+    .mapping-popup-row .mp-badge { font-size: 0.82em; padding: 2px 8px; border-radius: 12px; font-weight: 600; white-space: nowrap; }
+    .mapping-popup-row .mp-badge.shares { background: #e8f5e9; color: #2e7d32; }
+    .mapping-popup-row .mp-badge.director { background: #e3f2fd; color: #1565c0; }
+    .mapping-popup-row .mp-role { font-size: 0.78em; color: #999; }
 
     /* Toast — center popup */
     .toast-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 300; background: rgba(0,0,0,0.3); }
@@ -278,15 +292,18 @@
           </select>
         </div>
       </div>
-      <div id="mappingCanvas" style="position:relative;min-height:calc(100vh - 120px);background:#fafbfc;border-radius:12px;overflow:auto;background-image:radial-gradient(circle,#ddd 1px,transparent 1px);background-size:24px 24px;">
-        <svg id="mappingSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;">
-          <defs>
-            <marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
-            </marker>
-          </defs>
-        </svg>
-        <div id="mappingNodes" style="position:relative;z-index:2;"></div>
+      <div id="mappingCanvas" style="position:relative;min-height:calc(100vh - 120px);background:#fafbfc;border-radius:12px;overflow:hidden;background-image:radial-gradient(circle,#ddd 1px,transparent 1px);background-size:24px 24px;">
+        <div id="mappingZoomWrapper" style="transform-origin:0 0;">
+          <svg id="mappingSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;">
+            <defs>
+              <marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
+              </marker>
+            </defs>
+          </svg>
+          <div id="mappingNodes" style="position:relative;z-index:2;"></div>
+          <div id="mappingPopup" class="mapping-popup" style="display:none;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1387,35 +1404,59 @@
     }
 
     // ===== CSV Bulk Upload =====
-    function parseCSVLine(line) {
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (inQuotes) {
-          if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
-          else if (ch === '"') { inQuotes = false; }
-          else { current += ch; }
-        } else {
-          if (ch === '"') { inQuotes = true; }
-          else if (ch === ',') { result.push(current.trim()); current = ''; }
-          else { current += ch; }
-        }
-      }
-      result.push(current.trim());
-      return result;
-    }
-
     function parseCSV(text) {
       // Strip BOM
       if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) return [];
-      const headers = parseCSVLine(lines[0]);
+
+      // Parse CSV properly handling multiline quoted fields
       const rows = [];
+      let current = '';
+      let inQuotes = false;
+      const chars = text;
+
+      // Split into logical lines (respecting quoted newlines)
+      const lines = [];
+      for (let i = 0; i < chars.length; i++) {
+        const ch = chars[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+          current += ch;
+        } else if ((ch === '\r' || ch === '\n') && !inQuotes) {
+          if (ch === '\r' && chars[i + 1] === '\n') i++; // skip \r\n
+          if (current.trim()) lines.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      if (current.trim()) lines.push(current);
+
+      if (lines.length < 2) return [];
+
+      // Parse a single CSV line into columns
+      function parseLine(line) {
+        const result = [];
+        let col = '';
+        let q = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (q) {
+            if (ch === '"' && line[i + 1] === '"') { col += '"'; i++; }
+            else if (ch === '"') { q = false; }
+            else { col += ch; }
+          } else {
+            if (ch === '"') { q = true; }
+            else if (ch === ',') { result.push(col.trim()); col = ''; }
+            else { col += ch; }
+          }
+        }
+        result.push(col.trim());
+        return result;
+      }
+
+      const headers = parseLine(lines[0]);
       for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
+        const cols = parseLine(lines[i]);
         if (!cols[0]) continue; // skip empty rows
         const obj = {};
         headers.forEach((h, idx) => { obj[h] = cols[idx] || ''; });
@@ -1561,6 +1602,96 @@
     let mappingView = 'shareholders'; // 'shareholders' | 'directors' | 'company' | 'all'
     let mappingSelectedPerson = ''; // person name or company sheetName
     let mappingNodePositions = {}; // id -> { x, y }
+    let mappingZoom = 1;
+    let mappingPanX = 0;
+    let mappingPanY = 0;
+    const MAPPING_ZOOM_MIN = 0.15;
+    const MAPPING_ZOOM_MAX = 3;
+    let mappingPanning = false;
+    let mappingPanStart = { x: 0, y: 0 };
+    let mappingSpaceDown = false;
+
+    function applyMappingTransform() {
+      var wrapper = document.getElementById('mappingZoomWrapper');
+      wrapper.style.transform = 'translate(' + mappingPanX + 'px,' + mappingPanY + 'px) scale(' + mappingZoom + ')';
+    }
+
+    function resetMappingTransform() {
+      mappingZoom = 1;
+      mappingPanX = 0;
+      mappingPanY = 0;
+      applyMappingTransform();
+    }
+
+    // Figma-style navigation
+    (function() {
+      var canvas = document.getElementById('mappingCanvas');
+
+      // Ctrl/Cmd + scroll = zoom, plain scroll = pan
+      canvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) {
+          // Zoom toward mouse
+          var rect = canvas.getBoundingClientRect();
+          var mouseX = e.clientX - rect.left;
+          var mouseY = e.clientY - rect.top;
+
+          var zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
+          var newZoom = Math.min(MAPPING_ZOOM_MAX, Math.max(MAPPING_ZOOM_MIN, mappingZoom * zoomFactor));
+          var scale = newZoom / mappingZoom;
+
+          // Adjust pan so zoom centers on mouse
+          mappingPanX = mouseX - scale * (mouseX - mappingPanX);
+          mappingPanY = mouseY - scale * (mouseY - mappingPanY);
+          mappingZoom = newZoom;
+        } else {
+          // Pan
+          mappingPanX -= e.deltaX;
+          mappingPanY -= e.deltaY;
+        }
+        applyMappingTransform();
+      }, { passive: false });
+
+      // Middle mouse or Space+drag = pan
+      canvas.addEventListener('mousedown', function(e) {
+        if (e.button === 1 || mappingSpaceDown) {
+          e.preventDefault();
+          mappingPanning = true;
+          mappingPanStart = { x: e.clientX - mappingPanX, y: e.clientY - mappingPanY };
+          canvas.style.cursor = 'grabbing';
+        }
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (mappingPanning) {
+          mappingPanX = e.clientX - mappingPanStart.x;
+          mappingPanY = e.clientY - mappingPanStart.y;
+          applyMappingTransform();
+        }
+      });
+
+      document.addEventListener('mouseup', function(e) {
+        if (mappingPanning) {
+          mappingPanning = false;
+          canvas.style.cursor = '';
+        }
+      });
+
+      // Space key for pan mode
+      document.addEventListener('keydown', function(e) {
+        if (e.code === 'Space' && !e.target.matches('input,textarea,select')) {
+          e.preventDefault();
+          mappingSpaceDown = true;
+          canvas.style.cursor = 'grab';
+        }
+      });
+      document.addEventListener('keyup', function(e) {
+        if (e.code === 'Space') {
+          mappingSpaceDown = false;
+          if (!mappingPanning) canvas.style.cursor = '';
+        }
+      });
+    })();
 
     async function loadMapping() {
       if (!mappingData) {
@@ -1581,6 +1712,8 @@
       mappingSelectedPerson = '';
       document.getElementById('mappingPersonSelect').value = '';
       mappingNodePositions = {};
+      // Reset zoom & pan
+      resetMappingTransform();
       populateMappingPersonSelect();
       renderMapping();
     }
@@ -1683,8 +1816,10 @@
       var personStartX = Math.max(40, (canvasW - visiblePersons.length * personSpacing) / 2);
       var companyStartX = Math.max(40, (canvasW - companyIdxArr.length * companySpacing) / 2);
 
-      canvas.style.minWidth = canvasW + 'px';
-      canvas.style.minHeight = Math.max(canvasH, window.innerHeight - 120) + 'px';
+      var wrapper = document.getElementById('mappingZoomWrapper');
+      wrapper.style.minWidth = canvasW + 'px';
+      wrapper.style.minHeight = Math.max(canvasH, window.innerHeight - 120) + 'px';
+      wrapper.style.position = 'relative';
 
       // Assign default positions
       var nodePos = {}; // id -> {x, y}
@@ -1791,8 +1926,10 @@
       var companyStartX = Math.max(40, (canvasW - visibleCompanyIdxs.length * companySpacing) / 2);
       var personStartX = Math.max(40, (canvasW - personNames.length * personSpacing) / 2);
 
-      canvas.style.minWidth = canvasW + 'px';
-      canvas.style.minHeight = Math.max(canvasH, window.innerHeight - 120) + 'px';
+      var wrapperCV = document.getElementById('mappingZoomWrapper');
+      wrapperCV.style.minWidth = canvasW + 'px';
+      wrapperCV.style.minHeight = Math.max(canvasH, window.innerHeight - 120) + 'px';
+      wrapperCV.style.position = 'relative';
 
       var nodePos = {};
       visibleCompanyIdxs.forEach(function(ci, i) {
@@ -1829,8 +1966,8 @@
       nodesEl.innerHTML = html;
 
       // Draw lines: company (top) → person (bottom)
-      svgEl.setAttribute('width', canvas.scrollWidth);
-      svgEl.setAttribute('height', canvas.scrollHeight);
+      svgEl.setAttribute('width', wrapperCV.scrollWidth);
+      svgEl.setAttribute('height', wrapperCV.scrollHeight);
       var paths = '<defs><marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse"><polygon points="0 0, 10 3.5, 0 7" fill="#999"/></marker></defs>';
 
       personNames.forEach(function(name) {
@@ -1859,11 +1996,116 @@
       svgEl.innerHTML = paths;
     }
 
+    // ===== Mapping Popup =====
+    var mappingClickTimer = null;
+    var mappingDragged = false;
+
+    function showMappingPopup(nodeId, nodeEl) {
+      if (!mappingData) return;
+      var popup = document.getElementById('mappingPopup');
+      var companies = mappingData.companies;
+      var html = '';
+
+      if (nodeId.startsWith('p_')) {
+        // Person node — group by company, merge roles
+        var personName = nodeId.substring(2);
+        var companyMap = {}; // companyName -> { shares, percentage, position }
+        var companyOrder = [];
+        companies.forEach(function(c) {
+          var cName = c.companyNameTh || c.sheetName;
+          c.shareholders.forEach(function(s) {
+            if (s.name === personName) {
+              if (!companyMap[cName]) { companyMap[cName] = {}; companyOrder.push(cName); }
+              companyMap[cName].shares = s.shares;
+              companyMap[cName].percentage = s.percentage;
+            }
+          });
+          c.directors.forEach(function(d) {
+            if (d.name === personName) {
+              if (!companyMap[cName]) { companyMap[cName] = {}; companyOrder.push(cName); }
+              companyMap[cName].position = d.position || 'กรรมการ';
+            }
+          });
+        });
+
+        html = '<div class="mapping-popup-header person">' +
+          '<span>' + escHtml(personName) + ' (' + companyOrder.length + ' บริษัท)</span>' +
+          '<button class="mapping-popup-close" onclick="closeMappingPopup()">&times;</button></div>';
+        html += '<div class="mapping-popup-body">';
+        if (companyOrder.length === 0) {
+          html += '<div style="padding:16px;color:#999;text-align:center;">ไม่พบข้อมูล</div>';
+        } else {
+          companyOrder.forEach(function(cName) {
+            var info = companyMap[cName];
+            var badges = '';
+            if (info.percentage || info.shares) {
+              badges += '<span class="mp-badge shares">' + (info.percentage ? info.percentage + '%' : info.shares.toLocaleString() + ' หุ้น') + '</span> ';
+            }
+            if (info.position) {
+              badges += '<span class="mp-badge director">' + escHtml(info.position) + '</span>';
+            }
+            html += '<div class="mapping-popup-row">' +
+              '<div class="mp-name">' + escHtml(cName) + '</div>' +
+              '<div style="display:flex;gap:4px;flex-shrink:0;">' + badges + '</div></div>';
+          });
+        }
+        html += '</div>';
+      } else if (nodeId.startsWith('c_')) {
+        // Company node — show shareholders & directors
+        var ci = parseInt(nodeId.substring(2));
+        var c = companies[ci];
+        if (!c) return;
+
+        html = '<div class="mapping-popup-header company">' +
+          '<span>' + escHtml(c.companyNameTh || c.sheetName) + '</span>' +
+          '<button class="mapping-popup-close" onclick="closeMappingPopup()">&times;</button></div>';
+        html += '<div class="mapping-popup-body">';
+        if (c.shareholders.length > 0) {
+          html += '<div style="padding:6px 16px 4px;font-size:0.78em;color:#999;font-weight:600;">ผู้ถือหุ้น</div>';
+          c.shareholders.forEach(function(s) {
+            if (!s.name) return;
+            html += '<div class="mapping-popup-row">' +
+              '<div class="mp-name">' + escHtml(s.name) + '</div>' +
+              '<span class="mp-badge shares">' + (s.percentage ? s.percentage + '%' : (s.shares ? s.shares.toLocaleString() + ' หุ้น' : '-')) + '</span></div>';
+          });
+        }
+        if (c.directors.length > 0) {
+          html += '<div style="padding:6px 16px 4px;font-size:0.78em;color:#999;font-weight:600;">กรรมการ</div>';
+          c.directors.forEach(function(d) {
+            if (!d.name) return;
+            html += '<div class="mapping-popup-row">' +
+              '<div class="mp-name">' + escHtml(d.name) + '</div>' +
+              '<span class="mp-badge director">' + escHtml(d.position || 'กรรมการ') + '</span></div>';
+          });
+        }
+        html += '</div>';
+      }
+
+      popup.innerHTML = html;
+      // Position popup next to the node
+      var x = parseInt(nodeEl.style.left) + 190;
+      var y = parseInt(nodeEl.style.top);
+      popup.style.left = x + 'px';
+      popup.style.top = y + 'px';
+      popup.style.display = 'block';
+    }
+
+    function closeMappingPopup() {
+      document.getElementById('mappingPopup').style.display = 'none';
+    }
+
+    // Close popup when clicking outside
+    document.getElementById('mappingCanvas').addEventListener('mousedown', function(e) {
+      if (!e.target.closest('.mapping-popup') && !e.target.closest('.mapping-node')) {
+        closeMappingPopup();
+      }
+    });
+
     function drawMappingLines(persons, companyIdxArr, personMap, nodePos, nodeW) {
       var svgEl = document.getElementById('mappingSvg');
-      var canvas = document.getElementById('mappingCanvas');
-      svgEl.setAttribute('width', canvas.scrollWidth);
-      svgEl.setAttribute('height', canvas.scrollHeight);
+      var wrapper = document.getElementById('mappingZoomWrapper');
+      svgEl.setAttribute('width', wrapper.scrollWidth);
+      svgEl.setAttribute('height', wrapper.scrollHeight);
 
       var paths = '<defs><marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse"><polygon points="0 0, 10 3.5, 0 7" fill="#999"/></marker></defs>';
 
@@ -1905,9 +2147,10 @@
       svgEl.innerHTML = paths;
     }
 
-    // Drag & Drop for mapping nodes
+    // Drag & Drop for mapping nodes (with click detection)
     var dragState = null;
     function startDragNode(e, el) {
+      if (e.button !== 0) return; // left click only
       e.preventDefault();
       var nodeId = el.dataset.nodeId;
       var rect = el.getBoundingClientRect();
@@ -1920,14 +2163,22 @@
         offsetY: e.clientY - rect.top,
         canvasRect: canvasRect,
         canvas: canvas,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
       };
       el.classList.add('dragging');
     }
 
     document.addEventListener('mousemove', function(e) {
       if (!dragState) return;
-      var x = e.clientX - dragState.canvasRect.left - dragState.offsetX + dragState.canvas.scrollLeft;
-      var y = e.clientY - dragState.canvasRect.top - dragState.offsetY + dragState.canvas.scrollTop;
+      var dx = e.clientX - dragState.startX;
+      var dy = e.clientY - dragState.startY;
+      if (!dragState.moved && Math.abs(dx) + Math.abs(dy) < 5) return; // ignore tiny moves
+      dragState.moved = true;
+      // Convert screen coords to canvas coords accounting for zoom + pan
+      var x = (e.clientX - dragState.canvasRect.left - mappingPanX) / mappingZoom - dragState.offsetX / mappingZoom;
+      var y = (e.clientY - dragState.canvasRect.top - mappingPanY) / mappingZoom - dragState.offsetY / mappingZoom;
       x = Math.max(0, x);
       y = Math.max(0, y);
       dragState.el.style.left = x + 'px';
@@ -1940,6 +2191,10 @@
     document.addEventListener('mouseup', function() {
       if (!dragState) return;
       dragState.el.classList.remove('dragging');
+      // If not dragged, treat as click → show popup
+      if (!dragState.moved) {
+        showMappingPopup(dragState.nodeId, dragState.el);
+      }
       dragState = null;
     });
 
@@ -1958,9 +2213,9 @@
       if (mappingView === 'company') {
         // Company view: redraw company→person lines
         var svgEl = document.getElementById('mappingSvg');
-        var canvas = document.getElementById('mappingCanvas');
-        svgEl.setAttribute('width', canvas.scrollWidth);
-        svgEl.setAttribute('height', canvas.scrollHeight);
+        var wrapperR = document.getElementById('mappingZoomWrapper');
+        svgEl.setAttribute('width', wrapperR.scrollWidth);
+        svgEl.setAttribute('height', wrapperR.scrollHeight);
         var paths = '<defs><marker id="arrowMarker" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse"><polygon points="0 0, 10 3.5, 0 7" fill="#999"/></marker></defs>';
         var visibleCIs = [];
         if (mappingSelectedPerson) {
