@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import path from 'path';
 import { config } from './config';
-import { getPermissions, getDriveClient } from '@company-bot/shared';
+import { getPermissions } from '@company-bot/shared';
 import { companiesRouter } from './routes/companies';
 import { documentsRouter } from './routes/documents';
 import { versionsRouter } from './routes/versions';
