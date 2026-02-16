@@ -566,16 +566,6 @@ export function buildPermissionSummary(perm: UserPermission): FlexMessage {
       type: 'box',
       layout: 'vertical',
       contents: [
-        // สิทธิ์การใช้งาน
-        {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            { type: 'text', text: 'เอกสาร', size: 'sm', color: '#999999', flex: 4 },
-            { type: 'text', text: perm.canViewDocuments ? 'ดูและโหลดได้' : 'ไม่มีสิทธิ์', size: 'sm', color: perm.canViewDocuments ? '#1DB446' : '#E74C3C', flex: 4, align: 'end', weight: 'bold' },
-          ],
-        },
-        { type: 'separator', margin: 'lg' },
         // บริษัทที่เข้าถึงได้
         {
           type: 'text',
