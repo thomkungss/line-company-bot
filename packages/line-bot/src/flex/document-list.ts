@@ -1,5 +1,5 @@
 import { FlexMessage, FlexBubble } from '@line/bot-sdk';
-import { Company } from '@company-bot/shared';
+import { Company, getDocumentExpiryStatus } from '@company-bot/shared';
 import { config } from '../config';
 
 export function buildDocumentList(company: Company): FlexMessage {
@@ -21,6 +21,7 @@ export function buildDocumentList(company: Company): FlexMessage {
   }
 
   const docItems: any[] = docs.slice(0, 10).flatMap((doc, i) => {
+    const expiryStatus = getDocumentExpiryStatus(doc.expiryDate);
     const infoContents: any[] = [
       { type: 'text', text: doc.name, size: 'sm', color: '#333333', wrap: true },
     ];
@@ -28,6 +29,22 @@ export function buildDocumentList(company: Company): FlexMessage {
       infoContents.push({ type: 'text', text: `อัปเดต: ${doc.updatedDate}`, size: 'xxs', color: '#17A2B8' });
     } else if (doc.type) {
       infoContents.push({ type: 'text', text: doc.type, size: 'xxs', color: '#999999' });
+    }
+    if (doc.expiryDate) {
+      const statusLabel = expiryStatus === 'expired' ? 'หมดอายุแล้ว'
+        : expiryStatus === 'expiring-7d' ? 'หมดอายุใน 7 วัน'
+        : expiryStatus === 'expiring-30d' ? 'หมดอายุใน 30 วัน'
+        : null;
+      const statusColor = expiryStatus === 'expired' ? '#DC3545'
+        : expiryStatus === 'expiring-7d' ? '#E65100'
+        : expiryStatus === 'expiring-30d' ? '#F57F17'
+        : '#999999';
+      infoContents.push({
+        type: 'text',
+        text: statusLabel ? `หมดอายุ: ${doc.expiryDate} (${statusLabel})` : `หมดอายุ: ${doc.expiryDate}`,
+        size: 'xxs',
+        color: statusColor,
+      });
     }
     const items: any[] = [];
     if (i > 0) {
