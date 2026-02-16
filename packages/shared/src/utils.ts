@@ -34,10 +34,11 @@ export function isSpecialSheet(name: string): boolean {
 /** Extract Google Drive file ID from a full URL */
 export function extractDriveFileId(urlOrId: string): string {
   if (!urlOrId) return '';
-  // Already a bare ID
+  // Already a bare ID (no slashes, no protocol)
   if (!urlOrId.includes('/')) return urlOrId;
   // URL formats: /file/d/FILE_ID/..., id=FILE_ID
   const match = urlOrId.match(/\/d\/([a-zA-Z0-9_-]+)/) ||
                 urlOrId.match(/id=([a-zA-Z0-9_-]+)/);
-  return match ? match[1] : urlOrId;
+  // Return empty for non-Drive URLs (e.g. local upload URLs)
+  return match ? match[1] : '';
 }

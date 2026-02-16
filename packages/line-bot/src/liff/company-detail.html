@@ -157,7 +157,7 @@
           html += `<div class="section"><h3>เอกสาร (${c.documents.length} รายการ)</h3>
             ${c.documents.map(d => {
               let actions = '';
-              if (d.driveFileId) {
+              if (d.driveFileId && !d.driveFileId.startsWith('http')) {
                 actions = `<a href="${apiBase}/api/view/${d.driveFileId}" target="_blank">ดู PDF</a>
                   <a href="${apiBase}/api/download/${d.driveFileId}" target="_blank" class="secondary">ดาวน์โหลด</a>`;
               } else if (d.driveUrl) {
