@@ -233,6 +233,8 @@ function parseDocuments(rows: SheetRow[]): CompanyDocument[] {
     const expiryCell = (rows[i][3] || '').toString().trim();
 
     if (!nameCell || nameCell === '-') continue;
+    // Skip header row
+    if (nameCell === 'ชื่อเอกสาร') continue;
     // Stop at next section
     if (nameCell.startsWith('_') || findRowIndex(rows.slice(i), 'หมายเหตุ') === 0) break;
 
