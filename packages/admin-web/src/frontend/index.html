@@ -93,7 +93,10 @@
 
     /* Checkbox grid */
     .perm-grid { overflow-x: auto; }
+    .perm-grid table { border-collapse: collapse; }
     .perm-grid table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #dc2626; }
+    .perm-grid th.perm-company { position: relative; padding: 0; height: 140px; min-width: 36px; vertical-align: bottom; }
+    .perm-grid th.perm-company .perm-th-text { position: absolute; bottom: 8px; left: 50%; transform-origin: bottom left; transform: rotate(-55deg); white-space: nowrap; font-size: 0.78em; font-weight: 500; color: #52525b; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 
     /* Company view modes */
     .view-toggle { display: inline-flex; gap: 2px; background: #f3f4f6; border-radius: 8px; padding: 3px; }
@@ -1425,7 +1428,7 @@
           <thead>
             <tr>
               <th>LINE User ID</th><th>ชื่อ</th><th>Role</th><th style="text-align:center;">ดูเอกสาร</th><th style="text-align:center;">อนุมัติ</th>
-              ${companySheets.map(s => `<th style="text-align:center;">${escHtml(s)}</th>`).join('')}
+              ${companySheets.map(s => `<th class="perm-company" title="${escHtml(s)}"><div class="perm-th-text">${escHtml(s)}</div></th>`).join('')}
             </tr>
           </thead>
           <tbody>
