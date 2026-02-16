@@ -412,6 +412,7 @@
         document.querySelectorAll('[data-page]').forEach(n => n.classList.remove('active'));
         document.getElementById('page-' + page).classList.add('active');
         a.classList.add('active');
+        location.hash = page;
         loadPage(page);
       });
     });
@@ -2356,7 +2357,15 @@
 
     // Initial load
     initUserSelection();
-    loadDashboard();
+    var validPages = ['dashboard','companies','versions','permissions','chatlog','mapping'];
+    var initPage = location.hash.replace('#','');
+    if (validPages.indexOf(initPage) === -1) initPage = 'dashboard';
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('[data-page]').forEach(function(n) { n.classList.remove('active'); });
+    document.getElementById('page-' + initPage).classList.add('active');
+    var initNav = document.querySelector('[data-page="' + initPage + '"]');
+    if (initNav) initNav.classList.add('active');
+    loadPage(initPage);
   </script>
 </body>
 </html>
