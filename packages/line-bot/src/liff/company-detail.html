@@ -190,9 +190,9 @@
         // Version History
         html += `<div class="section"><h3>ประวัติการเปลี่ยนแปลง</h3>`;
         if (versions.length > 0) {
-          html += `<div class="timeline">`;
-          versions.slice(0, 20).forEach(v => {
-            html += `<div class="timeline-item">
+          html += `<div class="timeline" id="versionTimeline">`;
+          versions.forEach((v, idx) => {
+            html += `<div class="timeline-item" ${idx >= 5 ? 'style="display:none;" data-extra-version' : ''}>
               <div class="tl-date">${escapeHtml(v.timestamp)}</div>
               <div class="tl-field">${escapeHtml(v.fieldChanged)}</div>
               <div class="tl-change">
@@ -203,8 +203,10 @@
             </div>`;
           });
           html += `</div>`;
-          if (versions.length > 20) {
-            html += `<div style="text-align:center;font-size:0.8em;color:#999;margin-top:8px;">แสดง 20 จาก ${versions.length} รายการ</div>`;
+          if (versions.length > 5) {
+            html += `<div style="text-align:center;margin-top:10px;">
+              <button id="showMoreVersions" onclick="showAllVersions()" style="background:#1DB446;color:white;border:none;padding:8px 20px;border-radius:6px;font-size:0.85em;cursor:pointer;">ดูเพิ่มเติม (${versions.length - 5} รายการ)</button>
+            </div>`;
           }
         } else {
           html += `<div class="empty-msg">ยังไม่มีประวัติการเปลี่ยนแปลง</div>`;
@@ -215,6 +217,11 @@
       } catch (err) {
         document.getElementById('content').innerHTML = '<div class="error">ไม่สามารถโหลดข้อมูลได้</div>';
       }
+    }
+
+    function showAllVersions() {
+      document.querySelectorAll('[data-extra-version]').forEach(el => el.style.display = '');
+      document.getElementById('showMoreVersions').style.display = 'none';
     }
 
     function isMobile() {

@@ -149,17 +149,6 @@ export function buildCompanySelectionCarousel(companies: Company[], opts: CardOp
           type: 'box',
           layout: 'horizontal',
           contents: [
-            ...(opts.canViewDocuments !== false ? [{
-              type: 'button' as const,
-              action: {
-                type: 'postback' as const,
-                label: 'เอกสาร',
-                data: `action=documents&company=${encodeURIComponent(company.sheetName)}`,
-              },
-              style: 'secondary' as const,
-              height: 'sm' as const,
-              flex: 1,
-            }] : []),
             {
               type: 'button',
               action: {
@@ -336,18 +325,6 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
       type: 'box',
       layout: 'horizontal',
       contents: [
-        ...(opts.canViewDocuments !== false ? [{
-          type: 'button' as const,
-          action: {
-            type: 'postback' as const,
-            label: 'เอกสาร',
-            data: `action=documents&company=${encodeURIComponent(company.sheetName)}`,
-          },
-          style: 'primary' as const,
-          color: '#17A2B8',
-          height: 'sm' as const,
-          flex: 1,
-        }] : []),
         {
           type: 'button',
           action: {
@@ -355,7 +332,8 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
             label: 'ดูเพิ่มเติม',
             uri: `https://liff.line.me/${config.liffId}/company-detail.html?company=${encodeURIComponent(company.sheetName)}`,
           },
-          style: 'secondary',
+          style: 'primary',
+          color: '#1DB446',
           height: 'sm',
           flex: 1,
         },

@@ -1,7 +1,7 @@
 import { Client, PostbackEvent, FlexMessage } from '@line/bot-sdk';
 import { getUserPermission, getPermissions, updatePermissions, parseCompanySheet, getVersionHistory } from '@company-bot/shared';
 import { buildCompanyDetailFlex } from '../flex/company-card';
-import { buildDocumentList } from '../flex/document-list';
+
 import { buildVersionDiff } from '../flex/version-diff';
 import { buildShareholderTable } from '../flex/shareholder-table';
 import { config } from '../config';
@@ -59,21 +59,6 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
       if (!pb.company) return;
       const company = await parseCompanySheet(pb.company);
       const flex = buildShareholderTable(company);
-      await client.replyMessage(event.replyToken, flex);
-      break;
-    }
-
-    case 'documents': {
-      if (!pb.company) return;
-      if (!perm.canViewDocuments) {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'คุณไม่มีสิทธิ์ดูเอกสาร กรุณาติดต่อผู้ดูแลระบบ',
-        });
-        return;
-      }
-      const company = await parseCompanySheet(pb.company);
-      const flex = buildDocumentList(company, { canDownloadDocuments: perm.canViewDocuments });
       await client.replyMessage(event.replyToken, flex);
       break;
     }

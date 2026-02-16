@@ -2,7 +2,7 @@ import { Client, MessageEvent, FlexMessage } from '@line/bot-sdk';
 import { UserPermission, parseCompanySheet, getAccessibleCompanies, getVersionHistory } from '@company-bot/shared';
 import { buildCompanyDetailFlex } from '../flex/company-card';
 import { buildShareholderTable } from '../flex/shareholder-table';
-import { buildDocumentList } from '../flex/document-list';
+
 import { buildVersionDiff } from '../flex/version-diff';
 import { buildCompanySelectionCarousel } from '../flex/company-card';
 
@@ -36,34 +36,6 @@ export async function handleCommand(
       }
       const company = await parseCompanySheet(arg);
       const flex = buildCompanyDetailFlex(company, { canViewDocuments: perm.canViewDocuments });
-      await client.replyMessage(event.replyToken, flex);
-      break;
-    }
-
-    case '/docs': {
-      if (!perm.canViewDocuments) {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'คุณไม่มีสิทธิ์ดูเอกสาร กรุณาติดต่อผู้ดูแลระบบ',
-        });
-        return;
-      }
-      if (!arg) {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'กรุณาระบุชื่อบริษัท เช่น /docs มูทูเดย์',
-        });
-        return;
-      }
-      if (!perm.companies[arg]) {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: `คุณไม่มีสิทธิ์เข้าถึงเอกสารบริษัท "${arg}"`,
-        });
-        return;
-      }
-      const company = await parseCompanySheet(arg);
-      const flex = buildDocumentList(company);
       await client.replyMessage(event.replyToken, flex);
       break;
     }
@@ -126,7 +98,7 @@ export async function handleCommand(
           '/list — ดูรายชื่อบริษัททั้งหมด',
           '/company <ชื่อ> — ดูข้อมูลบริษัท',
           '/shareholders <ชื่อ> — ดูรายชื่อผู้ถือหุ้น',
-          '/docs <ชื่อ> — ดูเอกสารบริษัท',
+
           '/history <ชื่อ> — ดูประวัติเปลี่ยนแปลง',
           '/help — แสดงคำสั่งนี้',
           '',

@@ -46,8 +46,8 @@
           return;
         }
 
-        document.getElementById('content').innerHTML = versions.map(v => `
-          <div class="timeline-item">
+        document.getElementById('content').innerHTML = versions.map((v, idx) => `
+          <div class="timeline-item" ${idx >= 5 ? 'style="display:none;" data-extra-version' : ''}>
             <div class="field">${v.fieldChanged}</div>
             <div class="date">${v.timestamp}</div>
             <div class="diff">
@@ -56,7 +56,9 @@
             </div>
             <div class="by">โดย: ${v.changedBy || '-'}</div>
           </div>
-        `).join('');
+        `).join('') + (versions.length > 5 ? `<div style="text-align:center;margin-top:12px;">
+          <button id="showMoreVersions" onclick="document.querySelectorAll('[data-extra-version]').forEach(el=>el.style.display='');this.style.display='none';" style="background:#F39C12;color:white;border:none;padding:10px 24px;border-radius:8px;font-size:0.9em;cursor:pointer;">ดูเพิ่มเติม (${versions.length - 5} รายการ)</button>
+        </div>` : '');
       } catch {
         document.getElementById('content').innerHTML = '<div class="empty">ไม่สามารถโหลดข้อมูลได้</div>';
       }
