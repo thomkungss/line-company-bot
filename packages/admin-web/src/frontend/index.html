@@ -1427,25 +1427,27 @@
         <table>
           <thead>
             <tr>
-              <th>LINE User ID</th><th>ชื่อ</th><th>Role</th><th style="text-align:center;">ดูเอกสาร</th><th style="text-align:center;">อนุมัติ</th>
+              <th style="min-width:160px;">ผู้ใช้</th><th>สิทธิ์</th><th style="text-align:center;">เอกสาร</th><th style="text-align:center;">อนุมัติ</th>
               ${companySheets.map(s => `<th class="perm-company" title="${escHtml(s)}"><div class="perm-th-text">${escHtml(s)}</div></th>`).join('')}
             </tr>
           </thead>
           <tbody>
             ${permissions.map((p, i) => `
               <tr>
-                <td><input type="text" value="${escHtml(p.lineUserId)}" data-row="${i}" data-field="lineUserId" style="width:120px;padding:4px;font-size:0.8em;"></td>
                 <td>
-                  <div style="display:flex;align-items:center;gap:6px;">
-                    ${p.pictureUrl ? `<img src="${escHtml(p.pictureUrl)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">` : ''}
-                    <input type="text" value="${escHtml(p.displayName)}" data-row="${i}" data-field="displayName" style="width:80px;padding:4px;font-size:0.8em;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    ${p.pictureUrl ? `<img src="${escHtml(p.pictureUrl)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">` : '<div style="width:32px;height:32px;border-radius:50%;background:#e4e4e7;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7em;color:#71717a;">?</div>'}
+                    <div>
+                      <input type="text" value="${escHtml(p.displayName)}" data-row="${i}" data-field="displayName" style="width:110px;padding:4px 6px;font-size:0.85em;border:1px solid #e4e4e7;border-radius:6px;font-weight:500;">
+                      <input type="hidden" value="${escHtml(p.lineUserId)}" data-row="${i}" data-field="lineUserId">
+                    </div>
                   </div>
                 </td>
                 <td>
-                  <select data-row="${i}" data-field="role" style="padding:4px;font-size:0.8em;">
-                    <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>viewer</option>
-                    <option value="admin" ${p.role === 'admin' ? 'selected' : ''}>admin</option>
-                    <option value="super_admin" ${p.role === 'super_admin' ? 'selected' : ''}>super_admin</option>
+                  <select data-row="${i}" data-field="role" style="padding:5px 8px;font-size:0.82em;border:1px solid #e4e4e7;border-radius:6px;background:white;">
+                    <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+                    <option value="admin" ${p.role === 'admin' ? 'selected' : ''}>Admin</option>
+                    <option value="super_admin" ${p.role === 'super_admin' ? 'selected' : ''}>Super Admin</option>
                   </select>
                 </td>
                 <td style="text-align:center;">
