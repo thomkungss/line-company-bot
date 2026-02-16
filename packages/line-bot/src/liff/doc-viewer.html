@@ -127,6 +127,7 @@
     let pdfDoc = null;
     let renderedCanvases = [];
     let isImageFile = false;
+    let userName = '';
 
     document.getElementById('docName').textContent = docName;
 
@@ -162,7 +163,29 @@
 
       const ctx = canvas.getContext('2d');
       await page.render({ canvasContext: ctx, viewport }).promise;
+      addWatermark(canvas);
       return canvas;
+    }
+
+    function addWatermark(canvas) {
+      const ctx = canvas.getContext('2d');
+      const text = userName ? `COPY — ${userName}` : 'COPY';
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = '#000000';
+      const fontSize = Math.max(canvas.width / 12, 30);
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(-Math.PI / 6);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Repeat watermark across the page
+      for (let y = -canvas.height; y < canvas.height; y += fontSize * 3) {
+        for (let x = -canvas.width; x < canvas.width; x += ctx.measureText(text).width + fontSize * 2) {
+          ctx.fillText(text, x, y);
+        }
+      }
+      ctx.restore();
     }
 
     async function loadPDF(url) {
@@ -179,12 +202,24 @@
           isImageFile = true;
           const blob = await res.blob();
           loading.style.display = 'none';
-          container.className = 'img-viewer';
-          const img = document.createElement('img');
-          img.src = URL.createObjectURL(blob);
-          img.alt = docName;
+          container.className = 'pages';
           container.innerHTML = '';
-          container.appendChild(img);
+          // Draw image on canvas with watermark
+          const imgEl = new Image();
+          imgEl.src = URL.createObjectURL(blob);
+          await new Promise(r => { imgEl.onload = r; });
+          const cw = window.innerWidth;
+          const scale = (cw * window.devicePixelRatio) / imgEl.naturalWidth;
+          const canvas = document.createElement('canvas');
+          canvas.width = imgEl.naturalWidth * scale;
+          canvas.height = imgEl.naturalHeight * scale;
+          canvas.style.width = cw + 'px';
+          canvas.style.height = (canvas.height / window.devicePixelRatio) + 'px';
+          const ictx = canvas.getContext('2d');
+          ictx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+          addWatermark(canvas);
+          container.appendChild(canvas);
+          renderedCanvases.push(canvas);
           return;
         }
 
@@ -330,6 +365,10 @@
       try {
         const liffId = window.LIFF_ID || '';
         if (liffId) await liff.init({ liffId });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          userName = profile.displayName || '';
+        }
       } catch (e) {
         console.warn('LIFF init skipped:', e);
       }
