@@ -2,7 +2,12 @@ import { FlexMessage, FlexBubble } from '@line/bot-sdk';
 import { Company, getDocumentExpiryStatus } from '@company-bot/shared';
 import { config } from '../config';
 
-export function buildDocumentList(company: Company): FlexMessage {
+interface DocListOptions {
+  canDownloadDocuments?: boolean;
+}
+
+export function buildDocumentList(company: Company, options: DocListOptions = {}): FlexMessage {
+  const { canDownloadDocuments = false } = options;
   const docs = company.documents;
 
   if (docs.length === 0) {
@@ -50,6 +55,42 @@ export function buildDocumentList(company: Company): FlexMessage {
     if (i > 0) {
       items.push({ type: 'separator', margin: 'md' });
     }
+    const hasDriveFile = doc.driveFileId && !doc.driveFileId.startsWith('http');
+    const buttons: any[] = [];
+
+    if (hasDriveFile) {
+      buttons.push({
+        type: 'button',
+        action: { type: 'uri', label: 'ดู PDF', uri: `${config.baseUrl}/api/view/${doc.driveFileId}` },
+        style: 'primary',
+        color: '#17A2B8',
+        height: 'sm',
+      });
+      if (canDownloadDocuments) {
+        buttons.push({
+          type: 'button',
+          action: { type: 'uri', label: 'โหลด', uri: `${config.baseUrl}/api/download/${doc.driveFileId}` },
+          style: 'secondary',
+          height: 'sm',
+        });
+      }
+    } else if (doc.driveUrl) {
+      buttons.push({
+        type: 'button',
+        action: { type: 'uri', label: 'เปิด', uri: doc.driveUrl },
+        style: 'primary',
+        color: '#17A2B8',
+        height: 'sm',
+      });
+    } else {
+      buttons.push({
+        type: 'button',
+        action: { type: 'postback', label: '-', data: 'action=noop' },
+        style: 'secondary',
+        height: 'sm',
+      });
+    }
+
     items.push({
       type: 'box',
       layout: 'horizontal',
@@ -61,20 +102,11 @@ export function buildDocumentList(company: Company): FlexMessage {
           flex: 5,
         },
         {
-          type: 'button',
-          action: doc.driveFileId && !doc.driveFileId.startsWith('http')
-            ? {
-                type: 'uri',
-                label: 'ดู PDF',
-                uri: `${config.baseUrl}/api/view/${doc.driveFileId}`,
-              }
-            : doc.driveUrl
-            ? { type: 'uri', label: 'เปิด', uri: doc.driveUrl }
-            : { type: 'postback', label: '-', data: 'action=noop' },
-          style: 'primary',
-          color: '#17A2B8',
-          height: 'sm',
-          flex: 2,
+          type: 'box',
+          layout: 'vertical',
+          contents: buttons,
+          flex: 3,
+          spacing: 'xs',
         },
       ],
       margin: i === 0 ? 'none' : 'md',

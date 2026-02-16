@@ -73,7 +73,7 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
         return;
       }
       const company = await parseCompanySheet(pb.company);
-      const flex = buildDocumentList(company);
+      const flex = buildDocumentList(company, { canDownloadDocuments: perm.canDownloadDocuments });
       await client.replyMessage(event.replyToken, flex);
       break;
     }
