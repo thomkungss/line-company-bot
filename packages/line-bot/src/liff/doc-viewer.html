@@ -171,38 +171,44 @@
       const pageInfo = document.getElementById('pageInfo');
 
       try {
-        // Fetch the file first to check content type
-        const headRes = await fetch(url, { method: 'HEAD' });
-        const contentType = headRes.headers.get('content-type') || '';
+        // Fetch file once, check content-type from response header (no extra HEAD request)
+        const res = await fetch(url);
+        const contentType = res.headers.get('content-type') || '';
 
-        // If it's an image, show as image directly
         if (contentType.startsWith('image/')) {
           isImageFile = true;
+          const blob = await res.blob();
           loading.style.display = 'none';
           container.className = 'img-viewer';
           const img = document.createElement('img');
-          img.src = url;
+          img.src = URL.createObjectURL(blob);
           img.alt = docName;
-          img.onload = () => {};
           container.innerHTML = '';
           container.appendChild(img);
           return;
         }
 
-        // Load as PDF
-        const pdf = await pdfjsLib.getDocument(url).promise;
+        // Load PDF from already-fetched data (no second request)
+        const arrayBuffer = await res.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         pdfDoc = pdf;
         const numPages = pdf.numPages;
 
-        loading.style.display = 'none';
+        // Render first page immediately
         container.className = 'pages';
         container.innerHTML = '';
         pageInfo.style.display = 'block';
         pageInfo.textContent = `${numPages} หน้า`;
 
-        // Render all pages
         renderedCanvases = [];
-        for (let i = 1; i <= numPages; i++) {
+        const firstPage = await pdf.getPage(1);
+        const firstCanvas = await renderPage(firstPage, 1);
+        container.appendChild(firstCanvas);
+        renderedCanvases.push(firstCanvas);
+        loading.style.display = 'none';
+
+        // Lazy load remaining pages
+        for (let i = 2; i <= numPages; i++) {
           const page = await pdf.getPage(i);
           const canvas = await renderPage(page, i);
           container.appendChild(canvas);
@@ -210,7 +216,6 @@
         }
       } catch (err) {
         console.error('PDF load error:', err);
-        // Fallback: show in iframe
         loading.style.display = 'none';
         container.style.flex = '1';
         container.style.display = 'flex';

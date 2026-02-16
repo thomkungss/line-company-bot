@@ -205,7 +205,7 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
       layout: 'horizontal',
       contents: [
         { type: 'text', text: 'เลขทะเบียน', size: 'sm', color: '#999999', flex: 4 },
-        { type: 'text', text: company.registrationNumber || '-', size: 'sm', color: '#333333', flex: 6, wrap: true },
+        { type: 'text', text: company.registrationNumber || '-', size: 'sm', color: '#333333', flex: 6, align: 'end' },
       ],
     },
     { type: 'separator', margin: 'md' },
@@ -246,7 +246,7 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
       layout: 'horizontal',
       contents: [
         { type: 'text', text: 'ทุนจดทะเบียน', size: 'sm', color: '#999999', flex: 4 },
-        { type: 'text', text: company.registeredCapital ? formatMoney(company.registeredCapital) : '-', size: 'sm', color: '#333333', flex: 6, wrap: true },
+        { type: 'text', text: company.registeredCapital ? formatMoney(company.registeredCapital) : '-', size: 'sm', color: '#333333', flex: 6, align: 'end' },
       ],
       margin: 'md',
     },
@@ -256,7 +256,7 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
       layout: 'horizontal',
       contents: [
         { type: 'text', text: 'ผู้ถือหุ้น', size: 'sm', color: '#999999', flex: 4 },
-        { type: 'text', text: company.shareholders.length > 0 ? `${company.shareholders.length} คน` : '-', size: 'sm', color: '#333333', flex: 6 },
+        { type: 'text', text: company.shareholders.length > 0 ? `${company.shareholders.length} คน` : '-', size: 'sm', color: '#333333', flex: 6, align: 'end' },
       ],
       margin: 'sm',
     },
@@ -324,6 +324,7 @@ export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {})
       ],
       backgroundColor: '#1DB446',
       paddingAll: '20px',
+      height: '110px',
     },
     body: {
       type: 'box',
