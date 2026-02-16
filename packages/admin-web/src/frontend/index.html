@@ -19,7 +19,8 @@
     .sidebar nav a { display: flex; align-items: center; padding: 10px 16px; color: #71717a; text-decoration: none; font-size: 0.88em; font-weight: 450; transition: all 0.15s; border-radius: 8px; margin-bottom: 2px; }
     .sidebar nav a:hover { background: #f4f4f5; color: #3f3f46; }
     .sidebar nav a.active { background: #fef2f2; color: #dc2626; font-weight: 600; }
-    .sidebar nav a .icon { margin-right: 10px; font-size: 1em; width: 20px; text-align: center; }
+    .sidebar nav a .icon { margin-right: 10px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sidebar nav a .icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
     /* Main */
     .main { margin-left: 240px; padding: 32px 40px; min-height: 100vh; }
@@ -236,13 +237,13 @@
       </div>
     </div>
     <nav>
-      <a href="#" data-page="dashboard" class="active"><span class="icon">&#9632;</span> Dashboard</a>
-      <a href="#" data-page="companies"><span class="icon">&#9670;</span> บริษัท</a>
-      <a href="#" data-page="versions"><span class="icon">&#9200;</span> ประวัติเปลี่ยนแปลง</a>
-      <a href="#" data-page="permissions"><span class="icon">&#128274;</span> จัดการสิทธิ์</a>
-      <a href="#" data-page="chatlog"><span class="icon">&#128172;</span> Chat Log</a>
-      <a href="#" data-page="mapping"><span class="icon">&#9741;</span> Mapping</a>
-      <a href="#" id="logoutBtn"><span class="icon">&#10140;</span> ออกจากระบบ</a>
+      <a href="#" data-page="dashboard" class="active"><span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span> Dashboard</a>
+      <a href="#" data-page="companies"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 21V7l9-4 9 4v14H3z"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01"/></svg></span> บริษัท</a>
+      <a href="#" data-page="versions"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span> ประวัติเปลี่ยนแปลง</a>
+      <a href="#" data-page="permissions"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 015 5v3H7V7a5 5 0 015-5z"/><rect x="4" y="10" width="16" height="11" rx="2"/><circle cx="12" cy="16" r="1.5"/></svg></span> จัดการสิทธิ์</a>
+      <a href="#" data-page="chatlog"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"/></svg></span> Chat Log</a>
+      <a href="#" data-page="mapping"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><path d="M12 8v3M7.5 17.5L10 13M16.5 17.5L14 13"/></svg></span> Mapping</a>
+      <a href="#" id="logoutBtn"><span class="icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> ออกจากระบบ</a>
     </nav>
   </div>
 
@@ -298,7 +299,14 @@
 
     <!-- Versions -->
     <div id="page-versions" class="page">
-      <div class="topbar"><h1>ประวัติเปลี่ยนแปลง</h1></div>
+      <div class="topbar">
+        <h1>ประวัติเปลี่ยนแปลง</h1>
+        <div class="actions">
+          <select id="versionCompanyFilter" onchange="filterVersions()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;min-width:180px;">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+      </div>
       <div class="card" id="versionList"><div class="loading">กำลังโหลด...</div></div>
     </div>
 
@@ -995,25 +1003,39 @@
             <h3>เอกสาร (<span id="documentCount">${(c.documents || []).length}</span> รายการ)</h3>
           </div>
           <div id="documentsSection">
-            ${(c.documents || []).map(d => {
-              const expiryStatus = getExpiryStatus(d.expiryDate);
-              const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
-              return `
-              <div class="doc-row" style="flex-wrap:wrap;">
-                <div class="doc-name">${escHtml(d.name)} ${expiryBadge}</div>
-                <div class="doc-date">${escHtml(d.updatedDate || '-')}</div>
-                <div style="display:flex;align-items:center;gap:4px;">
-                  <label style="font-size:0.8em;color:#666;">หมดอายุ:</label>
-                  <input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.8em;">
-                </div>
-                ${d.driveFileId ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="btn btn-sm btn-secondary" target="_blank">ดาวน์โหลด</a>` : ''}
-                <label class="btn btn-sm btn-secondary" style="position:relative;overflow:hidden;">
-                  อัปโหลดใหม่
-                  <input type="file" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
-                </label>
-                ${d.driveFileId ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}')">ลบ</button>` : ''}
-              </div>`;
-            }).join('')}
+            ${(() => {
+              const REQUIRED_DOCS = ['หนังสือรับรอง', 'ภพ.20', 'บอจ.5'];
+              const docs = c.documents || [];
+              const docMap = {};
+              docs.forEach(d => { docMap[d.name] = d; });
+              // Build merged list: required docs first, then extras
+              const mergedDocs = REQUIRED_DOCS.map(name => docMap[name] || { name, driveFileId: null, updatedDate: null, expiryDate: null });
+              docs.forEach(d => { if (!REQUIRED_DOCS.includes(d.name)) mergedDocs.push(d); });
+              return mergedDocs.map(d => {
+                const isRequired = REQUIRED_DOCS.includes(d.name);
+                const hasFile = !!d.driveFileId;
+                const statusIcon = hasFile
+                  ? '<span style="color:#22c55e;font-size:1.1em;" title="อัปโหลดแล้ว">&#10004;</span>'
+                  : '<span style="color:#ef4444;font-size:1.1em;" title="ยังไม่ได้อัปโหลด">&#10008;</span>';
+                const expiryStatus = getExpiryStatus(d.expiryDate);
+                const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
+                return `
+                <div class="doc-row" style="flex-wrap:wrap;">
+                  <div class="doc-name">${statusIcon} ${escHtml(d.name)} ${expiryBadge}</div>
+                  <div class="doc-date">${escHtml(d.updatedDate || '-')}</div>
+                  <div style="display:flex;align-items:center;gap:4px;">
+                    <label style="font-size:0.8em;color:#666;">หมดอายุ:</label>
+                    <input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.8em;">
+                  </div>
+                  ${hasFile ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="btn btn-sm btn-secondary" target="_blank">ดาวน์โหลด</a>` : ''}
+                  <label class="btn btn-sm btn-secondary" style="position:relative;overflow:hidden;">
+                    ${hasFile ? 'อัปโหลดใหม่' : 'อัปโหลด'}
+                    <input type="file" accept=".pdf" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
+                  </label>
+                  ${hasFile && !isRequired ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}')" title="ลบ" style="padding:4px 8px;">&#128465;</button>` : ''}
+                </div>`;
+              }).join('');
+            })()}
           </div>
 
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee;">
@@ -1024,7 +1046,7 @@
                 <label for="newDocExpiry" style="font-size:0.75em;color:#999;">วันหมดอายุเอกสาร</label>
                 <input type="date" id="newDocExpiry" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;" title="วันหมดอายุ (ถ้ามี)">
               </div>
-              <input type="file" id="newDocFile" style="font-size:0.85em;">
+              <input type="file" id="newDocFile" accept=".pdf" style="font-size:0.85em;">
               <button class="btn btn-sm btn-primary" onclick="uploadNewDoc('${escHtml(sheet)}')">อัปโหลด</button>
             </div>
           </div>
@@ -1327,8 +1349,14 @@
     // ===== Documents =====
     async function uploadDocForName(sheet, docName, input) {
       if (!input.files.length) return;
+      const file = input.files[0];
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        toast('อนุญาตเฉพาะไฟล์ PDF เท่านั้น');
+        input.value = '';
+        return;
+      }
       const form = new FormData();
-      form.append('file', input.files[0]);
+      form.append('file', file);
       form.append('documentName', docName);
       toast('กำลังอัปโหลด...');
       const res = await fetch('/api/documents/' + encodeURIComponent(sheet), { method: 'POST', body: form });
@@ -1348,6 +1376,11 @@
       const docName = nameInput?.value?.trim();
       if (!docName) { toast('กรุณาใส่ชื่อเอกสาร'); return; }
       if (!fileInput?.files?.length) { toast('เลือกไฟล์ก่อน'); return; }
+      if (!fileInput.files[0].name.toLowerCase().endsWith('.pdf')) {
+        toast('อนุญาตเฉพาะไฟล์ PDF เท่านั้น');
+        fileInput.value = '';
+        return;
+      }
 
       const form = new FormData();
       form.append('file', fileInput.files[0]);
@@ -1397,11 +1430,20 @@
     });
 
     // ===== Versions =====
+    let allVersions = [];
     async function loadVersions() {
-      const versions = await api('/versions') || [];
+      allVersions = await api('/versions') || [];
+      const select = document.getElementById('versionCompanyFilter');
+      const companies = [...new Set(allVersions.map(v => v.companySheet).filter(Boolean))].sort();
+      select.innerHTML = '<option value="">ทั้งหมด</option>' + companies.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+      filterVersions();
+    }
+    function filterVersions() {
+      const selected = document.getElementById('versionCompanyFilter').value;
+      const filtered = selected ? allVersions.filter(v => v.companySheet === selected) : allVersions;
       const el = document.getElementById('versionList');
-      if (!versions.length) { el.innerHTML = '<p style="color:#999;">ไม่พบประวัติการเปลี่ยนแปลง</p>'; return; }
-      el.innerHTML = versions.slice(0, 50).map(v => `
+      if (!filtered.length) { el.innerHTML = '<p style="color:#999;">ไม่พบประวัติการเปลี่ยนแปลง</p>'; return; }
+      el.innerHTML = filtered.slice(0, 50).map(v => `
         <div class="timeline-item">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span class="field">${escHtml(v.fieldChanged)} <span class="badge badge-blue">${escHtml(v.companySheet)}</span></span>

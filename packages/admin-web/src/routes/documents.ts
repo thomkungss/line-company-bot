@@ -70,16 +70,28 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       return;
     }
 
+    // Validate PDF only
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    if (ext !== '.pdf' || (req.file.mimetype !== 'application/pdf' && req.file.mimetype !== 'application/x-pdf')) {
+      res.status(400).json({ error: 'อนุญาตเฉพาะไฟล์ PDF เท่านั้น' });
+      return;
+    }
+
     const sheet: string = req.params.sheet as string;
     const documentName: string = (req.body.documentName || '').toString().trim();
     const expiryDate: string | undefined = (req.body.expiryDate || '').toString().trim() || undefined;
 
-    const ext = path.extname(req.file.originalname) || '';
+    // Build file name: documentName_DD-MM-YYYY.pdf (Bangkok timezone)
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const dateSuffix = `${dd}-${mm}-${yyyy}`;
 
     // Upload to Google Drive — organized by company folder
     const drive = getDriveClient();
     const companyFolderId = await getOrCreateCompanyFolder(drive, sheet);
-    const fileName = documentName ? `${documentName}${ext}` : req.file.originalname;
+    const fileName = documentName ? `${documentName}_${dateSuffix}.pdf` : `${path.basename(req.file.originalname, ext)}_${dateSuffix}.pdf`;
     const driveRes = await drive.files.create({
       requestBody: {
         name: fileName,
