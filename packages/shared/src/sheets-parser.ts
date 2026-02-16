@@ -143,7 +143,17 @@ function parseRows(sheetName: string, rows: SheetRow[]): Company {
 
 function parseDirectors(rows: SheetRow[]): Director[] {
   const directors: Director[] = [];
-  const startIdx = findRowIndex(rows, 'กรรมการ');
+  const sectionHeaders = ['อำนาจกรรมการ', 'ทุนจดทะเบียน', 'ผู้ถือหุ้น', 'ที่ตั้ง', 'วัตถุ', 'ตราประทับ', 'เอกสาร', 'หมายเหตุ', 'จำนวนหุ้น', 'มูลค่า', 'ชำระ'];
+
+  // Find "กรรมการ" but not "อำนาจกรรมการ" or "จำนวนกรรมการ"
+  let startIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const cell = (rows[i][0] || '').toString().trim();
+    if (cell === 'กรรมการ' || (cell.includes('กรรมการ') && !cell.includes('อำนาจ') && !cell.includes('จำนวน'))) {
+      startIdx = i;
+      break;
+    }
+  }
   if (startIdx < 0) return directors;
 
   // First director might be on the same row — skip count text like "3 คน"
@@ -155,15 +165,34 @@ function parseDirectors(rows: SheetRow[]): Director[] {
   // Subsequent rows until we hit the next section
   for (let i = startIdx + 1; i < rows.length; i++) {
     const labelCell = (rows[i][0] || '').toString().trim();
-    // Stop at next labeled section
-    if (labelCell && !labelCell.match(/^\d+\.?$/) && labelCell !== '-') break;
 
-    const nameCell = (rows[i][1] || rows[i][0] || '').toString().trim();
-    if (!nameCell || nameCell === '-') continue;
+    // Stop at known section headers
+    if (labelCell && sectionHeaders.some(h => labelCell.includes(h))) break;
 
-    // If row starts with number like "1." or is blank label with name in col B
-    const position = (rows[i][2] || '').toString().trim() || undefined;
-    directors.push({ name: nameCell.replace(/^\d+\.?\s*/, ''), position });
+    // Get name from col B first, then col A
+    const colB = (rows[i][1] || '').toString().trim();
+    const colA = labelCell;
+
+    // Row with number prefix in col A (e.g. "1.") and name in col B
+    if (colA.match(/^\d+\.?$/) && colB && colB !== '-') {
+      const position = (rows[i][2] || '').toString().trim() || undefined;
+      directors.push({ name: colB.replace(/^\d+\.?\s*/, ''), position });
+      continue;
+    }
+
+    // Name directly in col A (e.g. "นายสมชาย ใจดี")
+    if (colA && colA !== '-' && !colA.match(/^\d+(\s*คน)?$/) && colA.length > 2) {
+      const position = (colB || (rows[i][2] || '').toString().trim()) || undefined;
+      directors.push({ name: colA.replace(/^\d+\.?\s*/, ''), position: position || undefined });
+      continue;
+    }
+
+    // Name in col B with blank/empty col A
+    if (!colA && colB && colB !== '-') {
+      const position = (rows[i][2] || '').toString().trim() || undefined;
+      directors.push({ name: colB.replace(/^\d+\.?\s*/, ''), position });
+      continue;
+    }
   }
   return directors;
 }
