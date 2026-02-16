@@ -1428,7 +1428,7 @@
         <table>
           <thead>
             <tr>
-              <th style="min-width:160px;">ผู้ใช้</th><th>สิทธิ์</th><th style="text-align:center;">เอกสาร</th><th style="text-align:center;">อนุมัติ</th>
+              <th style="min-width:160px;">ผู้ใช้</th><th>สิทธิ์</th><th style="text-align:center;">ดูเอกสาร</th><th style="text-align:center;">โหลดเอกสาร</th><th style="text-align:center;">อนุมัติ</th>
               ${companySheets.map(s => `<th class="perm-company" title="${escHtml(s)}"><div class="perm-th-text">${escHtml(s)}</div></th>`).join('')}
             </tr>
           </thead>
@@ -1455,6 +1455,9 @@
                   <input type="checkbox" data-row="${i}" data-field="canViewDocuments" ${p.canViewDocuments !== false ? 'checked' : ''}>
                 </td>
                 <td style="text-align:center;">
+                  <input type="checkbox" data-row="${i}" data-field="canDownloadDocuments" ${p.canDownloadDocuments !== false ? 'checked' : ''}>
+                </td>
+                <td style="text-align:center;">
                   <input type="checkbox" data-row="${i}" data-field="approved" ${p.approved !== false ? 'checked' : ''}>
                 </td>
                 ${companySheets.map(s => `
@@ -1472,7 +1475,7 @@
 
     function addPermRow() {
       if (!permData) return;
-      permData.permissions.push({ lineUserId: '', displayName: '', role: 'viewer', canViewDocuments: true, approved: true, companies: {} });
+      permData.permissions.push({ lineUserId: '', displayName: '', role: 'viewer', canViewDocuments: true, canDownloadDocuments: true, approved: true, companies: {} });
       loadPermissions();
     }
 
@@ -1482,7 +1485,7 @@
       document.querySelectorAll('[data-row][data-field]').forEach(el => {
         const i = Number(el.dataset.row);
         const field = el.dataset.field;
-        if (field === 'canViewDocuments' || field === 'approved') {
+        if (field === 'canViewDocuments' || field === 'canDownloadDocuments' || field === 'approved') {
           rows[i][field] = el.checked;
         } else {
           rows[i][field] = el.value || el.tagName === 'SELECT' ? el.value : el.value;

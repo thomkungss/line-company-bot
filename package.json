@@ -14,5 +14,8 @@
     "build:admin": "npm run build -w packages/admin-web",
     "dev:bot": "npm run dev -w packages/line-bot",
     "dev:admin": "npm run dev -w packages/admin-web"
+  },
+  "devDependencies": {
+    "dotenv": "^17.3.1"
   }
 }

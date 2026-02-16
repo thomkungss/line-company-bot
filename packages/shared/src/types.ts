@@ -55,6 +55,7 @@ export interface UserPermission {
   displayName: string;
   role: 'super_admin' | 'admin' | 'viewer';
   canViewDocuments: boolean;
+  canDownloadDocuments: boolean;
   approved?: boolean;
   pictureUrl?: string;
   pendingCompanies?: string; // comma-separated company names awaiting approval

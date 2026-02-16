@@ -60,11 +60,13 @@
   <div class="container" id="content">
     <div class="loading">กำลังโหลดข้อมูล...</div>
   </div>
+  <script src="/liff/env.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
     const companyName = params.get('company') || '';
     const apiBase = window.location.origin;
+    let canDownload = true; // default true, will be updated after LIFF init
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -158,8 +160,10 @@
             ${c.documents.map(d => {
               let actions = '';
               if (d.driveFileId && !d.driveFileId.startsWith('http')) {
-                actions = `<a href="${apiBase}/api/view/${d.driveFileId}" target="_blank">ดู PDF</a>
-                  <a href="${apiBase}/api/download/${d.driveFileId}" target="_blank" class="secondary">ดาวน์โหลด</a>`;
+                actions = `<a href="${apiBase}/api/view/${d.driveFileId}" target="_blank">ดู PDF</a>`;
+                if (canDownload) {
+                  actions += `<a href="${apiBase}/api/download/${d.driveFileId}" target="_blank" class="secondary">ดาวน์โหลด</a>`;
+                }
               } else if (d.driveUrl) {
                 actions = `<a href="${d.driveUrl}" target="_blank">เปิด</a>`;
               }
@@ -210,7 +214,22 @@
       }
     }
 
-    loadData();
+    (async () => {
+      try {
+        await liff.init({ liffId: window.LIFF_ID });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          const permRes = await fetch(`${apiBase}/api/liff/permission/${encodeURIComponent(profile.userId)}`);
+          if (permRes.ok) {
+            const perm = await permRes.json();
+            canDownload = perm.canDownloadDocuments !== false;
+          }
+        }
+      } catch (e) {
+        console.warn('LIFF init skipped:', e);
+      }
+      loadData();
+    })();
   </script>
 </body>
 </html>

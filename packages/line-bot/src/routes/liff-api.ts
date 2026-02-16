@@ -64,6 +64,7 @@ liffApiRouter.post('/register', async (req: Request, res: Response) => {
       displayName,
       role: 'viewer',
       canViewDocuments: true,
+      canDownloadDocuments: true,
       approved: false,
       pictureUrl: pictureUrl || undefined,
       companies: {},
@@ -92,6 +93,21 @@ liffApiRouter.post('/register', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Registration error:', err.message);
     res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+/** Get user permission for LIFF page */
+liffApiRouter.get('/permission/:userId', async (req: Request, res: Response) => {
+  try {
+    const userId: string = req.params.userId as string;
+    const perm = await getUserPermission(userId);
+    if (!perm) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    res.json({ canViewDocuments: perm.canViewDocuments, canDownloadDocuments: perm.canDownloadDocuments });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to get permission' });
   }
 });
 

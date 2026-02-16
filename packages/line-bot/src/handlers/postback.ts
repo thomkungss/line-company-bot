@@ -98,6 +98,13 @@ export async function handlePostback(client: Client, event: PostbackEvent): Prom
 
     case 'download': {
       if (!pb.fileId) return;
+      if (!perm.canDownloadDocuments) {
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'คุณไม่มีสิทธิ์ดาวน์โหลดเอกสาร กรุณาติดต่อผู้ดูแลระบบ',
+        });
+        return;
+      }
       const downloadUrl = `${config.baseUrl}/api/download/${pb.fileId}`;
       await client.replyMessage(event.replyToken, {
         type: 'text',
