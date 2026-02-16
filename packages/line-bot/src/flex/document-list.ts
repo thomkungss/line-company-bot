@@ -62,7 +62,7 @@ export function buildDocumentList(company: Company): FlexMessage {
         },
         {
           type: 'button',
-          action: doc.driveFileId
+          action: doc.driveFileId && !doc.driveFileId.startsWith('http')
             ? {
                 type: 'uri',
                 label: 'ดู PDF',
