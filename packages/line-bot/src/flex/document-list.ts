@@ -104,10 +104,13 @@ export function buildDocumentList(company: Company, options: DocListOptions = {}
     const hasDriveFile = doc.driveFileId && !doc.driveFileId.startsWith('http');
     const actionButtons: any[] = [];
 
+    const liffBase = `https://liff.line.me/${config.liffId}`;
     if (hasDriveFile) {
+      const encodedName = encodeURIComponent(doc.name);
+      const encodedFileId = encodeURIComponent(doc.driveFileId!);
       actionButtons.push({
         type: 'button',
-        action: { type: 'uri', label: 'ดู PDF', uri: `${config.baseUrl}/api/view/${doc.driveFileId}` },
+        action: { type: 'uri', label: 'ดู PDF', uri: `${liffBase}/doc-viewer.html?fileId=${encodedFileId}&name=${encodedName}` },
         style: 'primary',
         color: '#0D99FF',
         height: 'sm',
@@ -116,7 +119,7 @@ export function buildDocumentList(company: Company, options: DocListOptions = {}
       if (canDownloadDocuments) {
         actionButtons.push({
           type: 'button',
-          action: { type: 'uri', label: 'ดาวน์โหลด', uri: `${config.baseUrl}/api/download/${doc.driveFileId}` },
+          action: { type: 'uri', label: 'บันทึก', uri: `${liffBase}/doc-viewer.html?fileId=${encodedFileId}&name=${encodedName}&mode=download` },
           style: 'secondary',
           height: 'sm',
           flex: 1,

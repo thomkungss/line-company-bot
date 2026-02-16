@@ -160,9 +160,10 @@
             ${c.documents.map(d => {
               let actions = '';
               if (d.driveFileId && !d.driveFileId.startsWith('http')) {
-                actions = `<a href="${apiBase}/api/view/${d.driveFileId}" target="_blank">ดู PDF</a>`;
+                const viewerUrl = `/liff/doc-viewer.html?fileId=${encodeURIComponent(d.driveFileId)}&name=${encodeURIComponent(d.name)}`;
+                actions = `<a href="${viewerUrl}">ดู PDF</a>`;
                 if (canDownload) {
-                  actions += `<a href="${apiBase}/api/download/${d.driveFileId}" target="_blank" class="secondary">ดาวน์โหลด</a>`;
+                  actions += `<a href="${viewerUrl}&mode=download" class="secondary">บันทึก</a>`;
                 }
               } else if (d.driveUrl) {
                 actions = `<a href="${d.driveUrl}" target="_blank">เปิด</a>`;
