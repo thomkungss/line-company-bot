@@ -26,7 +26,7 @@ documentsRouter.get('/:sheet', async (req: Request, res: Response) => {
   }
 });
 
-/** Upload document — stored locally on server */
+/** Upload document — all files stored on Google Drive */
 documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -38,45 +38,38 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     const documentName: string = (req.body.documentName || '').toString().trim();
     const expiryDate: string | undefined = (req.body.expiryDate || '').toString().trim() || undefined;
 
-    // Generate unique filename
     const ext = path.extname(req.file.originalname) || '';
     const uuid = crypto.randomUUID();
-    const fileName = `${uuid}${ext}`;
 
-    // Save file locally
-    const filePath = path.join(UPLOAD_DIR, fileName);
-    fs.writeFileSync(filePath, req.file.buffer);
+    // Upload to Google Drive
+    const drive = getDriveClient();
+    const prefix = documentName === 'ตราประทับ' ? 'seal' : 'doc';
+    const driveRes = await drive.files.create({
+      requestBody: {
+        name: `${prefix}-${sheet}-${uuid}${ext}`,
+        parents: [getDriveFolderId()],
+      },
+      media: {
+        mimeType: req.file.mimetype || 'application/octet-stream',
+        body: Readable.from(req.file.buffer),
+      },
+      fields: 'id',
+    });
+    const driveFileId = (driveRes as any).data?.id;
+    if (!driveFileId) throw new Error('Drive upload failed — no file ID returned');
 
-    // Build public URL
-    let fileUrl = `${config.baseUrl}/api/uploads/${fileName}`;
+    // Make file publicly readable
+    await drive.permissions.create({
+      fileId: driveFileId,
+      requestBody: { role: 'reader', type: 'anyone' },
+    });
+
+    const fileUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
 
     // Update Google Sheet
     let sheetUpdated = false;
     if (documentName === 'ตราประทับ') {
-      // Seal — upload to Google Drive for persistent storage
-      const drive = getDriveClient();
-      const driveRes = await drive.files.create({
-        requestBody: {
-          name: `seal-${sheet}-${uuid}${ext}`,
-          parents: [getDriveFolderId()],
-        },
-        media: {
-          mimeType: req.file.mimetype || 'image/png',
-          body: Readable.from(req.file.buffer),
-        },
-        fields: 'id',
-      });
-      const driveFileId = (driveRes as any).data?.id;
-      if (!driveFileId) throw new Error('Drive upload failed — no file ID returned');
-      // Make file publicly readable so LINE proxy can access it
-      await drive.permissions.create({
-        fileId: driveFileId,
-        requestBody: { role: 'reader', type: 'anyone' },
-      });
       sheetUpdated = await updateSealInSheet(sheet, driveFileId);
-      // Clean up local file — seal is on Drive now
-      fs.unlinkSync(filePath);
-      fileUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
     } else if (documentName) {
       const updated = await updateDocumentInSheet(sheet, documentName, fileUrl, expiryDate);
       if (updated) {
@@ -90,6 +83,7 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     res.json({
       success: true,
       fileUrl,
+      driveFileId,
       name: documentName || req.file.originalname,
       sheetUpdated,
     });
