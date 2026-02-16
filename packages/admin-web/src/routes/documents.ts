@@ -1,17 +1,53 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import crypto from 'crypto';
 import path from 'path';
-import fs from 'fs';
 import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet, updateDocumentExpiry } from '@company-bot/shared';
 import { Readable } from 'stream';
 import { config } from '../config';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-// Local file storage directory
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Cache of company folder IDs in Drive (sheetName → folderId)
+const companyFolderCache = new Map<string, string>();
+
+/** Get or create a company subfolder inside the root Drive folder */
+async function getOrCreateCompanyFolder(drive: any, sheetName: string): Promise<string> {
+  const cached = companyFolderCache.get(sheetName);
+  if (cached) return cached;
+
+  const rootFolderId = getDriveFolderId();
+
+  // Search for existing folder
+  const search = await drive.files.list({
+    q: `name='${sheetName.replace(/'/g, "\\'")}' and '${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    corpora: 'allDrives',
+  });
+
+  const existing = (search as any).data?.files?.[0];
+  if (existing) {
+    companyFolderCache.set(sheetName, existing.id);
+    return existing.id;
+  }
+
+  // Create new folder
+  const folderRes = await drive.files.create({
+    requestBody: {
+      name: sheetName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [rootFolderId],
+    },
+    fields: 'id',
+    supportsAllDrives: true,
+  });
+  const folderId = (folderRes as any).data?.id;
+  if (!folderId) throw new Error('Failed to create company folder');
+
+  companyFolderCache.set(sheetName, folderId);
+  return folderId;
+}
 
 export const documentsRouter = Router();
 
@@ -39,15 +75,15 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     const expiryDate: string | undefined = (req.body.expiryDate || '').toString().trim() || undefined;
 
     const ext = path.extname(req.file.originalname) || '';
-    const uuid = crypto.randomUUID();
 
-    // Upload to Google Drive
+    // Upload to Google Drive — organized by company folder
     const drive = getDriveClient();
-    const prefix = documentName === 'ตราประทับ' ? 'seal' : 'doc';
+    const companyFolderId = await getOrCreateCompanyFolder(drive, sheet);
+    const fileName = documentName ? `${documentName}${ext}` : req.file.originalname;
     const driveRes = await drive.files.create({
       requestBody: {
-        name: `${prefix}-${sheet}-${uuid}${ext}`,
-        parents: [getDriveFolderId()],
+        name: fileName,
+        parents: [companyFolderId],
       },
       media: {
         mimeType: req.file.mimetype || 'application/octet-stream',
