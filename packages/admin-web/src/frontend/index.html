@@ -84,12 +84,13 @@
     .page.active { display: block; }
 
     /* Timeline */
-    .timeline-item { padding: 14px 0; border-left: 2px solid #d1d5db; padding-left: 18px; margin-left: 8px; margin-bottom: 4px; }
+    .timeline-item { padding: 14px 0; border-left: 2px solid #d1d5db; padding-left: 18px; margin-left: 8px; margin-bottom: 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 14px; }
+    .timeline-item:last-child { border-bottom: none; }
     .timeline-item .field { font-weight: 600; color: #dc2626; font-size: 0.9em; }
     .timeline-item .date { font-size: 0.78em; color: #9ca3af; }
     .timeline-item .diff { margin-top: 6px; font-size: 0.85em; }
-    .timeline-item .old { color: #ef4444; }
-    .timeline-item .new { color: #dc2626; }
+    .timeline-item .old { color: #dc2626; }
+    .timeline-item .new { color: #2563eb; }
 
     /* Checkbox grid */
     .perm-grid { overflow-x: auto; }
