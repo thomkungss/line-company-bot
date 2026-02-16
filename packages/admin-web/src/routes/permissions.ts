@@ -6,8 +6,10 @@ export const permissionsRouter = Router();
 /** Get all permissions */
 permissionsRouter.get('/', async (_req: Request, res: Response) => {
   try {
-    const permissions = await getPermissions();
-    const companySheets = await listCompanySheets();
+    const [permissions, companySheets] = await Promise.all([
+      getPermissions(),
+      listCompanySheets(),
+    ]);
     res.json({ permissions, companySheets });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

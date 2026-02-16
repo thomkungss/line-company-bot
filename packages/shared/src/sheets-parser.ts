@@ -8,29 +8,59 @@ import { parseThaiNumber, extractDriveFileId, isSpecialSheet } from './utils';
 
 type SheetRow = (string | undefined)[];
 
+// ===== Simple TTL Cache =====
+
+const cache: Record<string, { data: any; expiry: number }> = {};
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+function getCached<T>(key: string): T | null {
+  const entry = cache[key];
+  if (entry && Date.now() < entry.expiry) return entry.data as T;
+  return null;
+}
+
+function setCache(key: string, data: any): void {
+  cache[key] = { data, expiry: Date.now() + CACHE_TTL };
+}
+
+export function clearCache(key?: string): void {
+  if (key) { delete cache[key]; } else { Object.keys(cache).forEach(k => delete cache[k]); }
+}
+
 // ===== List All Company Sheets =====
 
 export async function listCompanySheets(): Promise<string[]> {
+  const cached = getCached<string[]>('companySheets');
+  if (cached) return cached;
+
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.get({
     spreadsheetId: getSpreadsheetId(),
     fields: 'sheets.properties.title',
   });
-  return (res.data.sheets || [])
+  const result = (res.data.sheets || [])
     .map(s => s.properties?.title || '')
     .filter(name => name && !isSpecialSheet(name));
+  setCache('companySheets', result);
+  return result;
 }
 
 // ===== Parse Company Data from Sheet =====
 
 export async function parseCompanySheet(sheetName: string): Promise<Company> {
+  const cacheKey = 'company:' + sheetName;
+  const cached = getCached<Company>(cacheKey);
+  if (cached) return cached;
+
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
     range: `'${sheetName}'!A:Z`,
   });
   const rows: SheetRow[] = res.data.values || [];
-  return parseRows(sheetName, rows);
+  const result = parseRows(sheetName, rows);
+  setCache(cacheKey, result);
+  return result;
 }
 
 function findValue(rows: SheetRow[], label: string, colOffset = 1): string {
@@ -482,6 +512,7 @@ export async function updateCompanyField(
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: [[newValue]] },
       });
+      clearCache('company:' + sheetName);
       return { row: i + 1, oldValue };
     }
   }
@@ -809,6 +840,7 @@ export async function createCompanySheet(sheetName: string): Promise<{ driveFold
     // Drive folder creation is optional
   }
 
+  clearCache('companySheets');
   return { driveFolderId };
 }
 
@@ -836,6 +868,7 @@ export async function deleteCompanySheet(sheetName: string): Promise<void> {
       requests: [{ deleteSheet: { sheetId: sheetMeta.properties!.sheetId! } }],
     },
   });
+  clearCache('companySheets');
 }
 
 // ===== Update Directors Section =====
@@ -926,6 +959,7 @@ export async function updateDirectors(sheetName: string, directors: Director[]):
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[`${directors.length} คน`]] },
   });
+  clearCache('company:' + sheetName);
 }
 
 // ===== Update Shareholders Section =====
@@ -1023,4 +1057,5 @@ export async function updateShareholders(sheetName: string, shareholders: Shareh
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[`${shareholders.length} คน`]] },
   });
+  clearCache('company:' + sheetName);
 }
