@@ -1138,50 +1138,66 @@
       el.style.display = 'block';
 
       el.innerHTML = `
-        <!-- General Info Section -->
-        <div class="card">
-          <div class="card-header">
-            <h3><span class="section-icon" style="background:#eff6ff;color:#3b82f6;"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>ข้อมูลทั่วไป</h3>
-            <span style="color:#9ca3af;font-size:0.8em;background:#f9fafb;padding:4px 12px;border-radius:20px;">ข้อมูล ณ ${escHtml(c.dataDate || '-')}</span>
+        <!-- Row 1: Seal + Company Names -->
+        <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:16px;">
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+            <h3 style="align-self:flex-start;">ตราประทับ</h3>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;">
+              ${(function(){
+                const src = c.sealImageUrl || (c.sealImageDriveId ? '/api/documents/download/' + c.sealImageDriveId : '');
+                return src
+                  ? '<img src="' + escHtml(src) + '" style="max-width:180px;max-height:160px;border-radius:8px;border:1px solid #e5e7eb;" onerror="this.parentElement.innerHTML=\'<span style=color:#ccc;font-size:0.85em>ยังไม่มีตราประทับ</span>\'">'
+                  : '<span style="color:#ccc;font-size:0.85em;">ยังไม่มีตราประทับ</span>';
+              })()}
+            </div>
+            <div style="margin-top:12px;width:100%;display:flex;align-items:center;gap:8px;justify-content:center;">
+              <input type="file" id="sealUploadFile" accept="image/*" style="font-size:0.78em;max-width:160px;">
+              <button class="btn btn-sm btn-primary" onclick="uploadSeal('${escHtml(sheet)}')">อัปโหลด</button>
+            </div>
           </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label>ชื่อบริษัท (ภาษาไทย)</label>
+                <input type="text" id="field-companyNameTh" value="${escHtml(c.companyNameTh || '')}">
+              </div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label>ชื่อบริษัท (English)</label>
+                <input type="text" id="field-companyNameEn" value="${escHtml(c.companyNameEn || '')}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Registration + Capital -->
+        <div class="card">
           <div class="form-grid">
-            <div class="form-group">
-              <label>ชื่อบริษัท (ภาษาไทย)</label>
-              <input type="text" id="field-companyNameTh" value="${escHtml(c.companyNameTh || '')}">
-            </div>
-            <div class="form-group">
-              <label>ชื่อบริษัท (English)</label>
-              <input type="text" id="field-companyNameEn" value="${escHtml(c.companyNameEn || '')}">
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom:0;">
               <label>เลขทะเบียนนิติบุคคล</label>
               <input type="text" id="field-registrationNumber" value="${escHtml(c.registrationNumber || '')}">
             </div>
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom:0;">
               <label>ทุนจดทะเบียน</label>
               <input type="text" id="field-capitalText" value="${escHtml(c.capitalText || String(c.registeredCapital || ''))}">
             </div>
-            <div class="form-group">
-              <label>อำนาจกรรมการ</label>
-              <input type="text" id="field-authorizedSignatory" value="${escHtml(c.authorizedSignatory || '')}">
-            </div>
-            <div class="form-group full">
-              <label>ที่ตั้งสำนักงานใหญ่</label>
-              <textarea id="field-headOfficeAddress" rows="2">${escHtml(c.headOfficeAddress || '')}</textarea>
-            </div>
-            <div class="form-group full">
-              <label>วัตถุประสงค์</label>
-              <textarea id="field-objectives" rows="2">${escHtml(c.objectives || '')}</textarea>
-            </div>
           </div>
-          <div style="border-top:1px solid #e5e7eb;margin-top:16px;padding-top:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <span style="font-weight:600;font-size:0.9em;color:#374151;">ตราประทับ</span>
-            ${(function(){
-              const src = c.sealImageUrl || (c.sealImageDriveId ? '/api/documents/download/' + c.sealImageDriveId : '');
-              return src ? '<img src="' + escHtml(src) + '" style="max-width:80px;max-height:80px;border-radius:6px;border:1px solid #e5e7eb;" onerror="this.style.display=\'none\'">' : '<span style="color:#999;font-size:0.85em;">ยังไม่มี</span>';
-            })()}
-            <input type="file" id="sealUploadFile" accept="image/*" style="font-size:0.8em;">
-            <button class="btn btn-sm btn-primary" onclick="uploadSeal('${escHtml(sheet)}')">อัปโหลด</button>
+        </div>
+
+        <!-- Row 3: Authority + Address + Objectives -->
+        <div class="card">
+          <div class="form-group">
+            <label>อำนาจกรรมการ</label>
+            <input type="text" id="field-authorizedSignatory" value="${escHtml(c.authorizedSignatory || '')}">
+          </div>
+          <div class="form-group">
+            <label>ที่ตั้งสำนักงานใหญ่</label>
+            <textarea id="field-headOfficeAddress" rows="2">${escHtml(c.headOfficeAddress || '')}</textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>วัตถุประสงค์</label>
+            <textarea id="field-objectives" rows="2">${escHtml(c.objectives || '')}</textarea>
           </div>
         </div>
 
