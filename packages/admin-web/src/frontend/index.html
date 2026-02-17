@@ -1224,13 +1224,13 @@
               docs.forEach(d => { if (!REQUIRED_DOCS.includes(d.name)) mergedDocs.push(d); });
               return mergedDocs.map(d => {
                 const hasFile = !!d.driveFileId;
+                const isInDb = !!docMap[d.name];
                 const expiryStatus = getExpiryStatus(d.expiryDate);
                 const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
                 return `
-                <div class="doc-box ${hasFile ? 'doc-uploaded' : 'doc-missing'}">
-                  <div class="doc-box-actions">
-                    ${hasFile ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="doc-box-btn" target="_blank" title="ดาวน์โหลด"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>` : ''}
-                    ${hasFile ? `<button class="doc-box-btn delete" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
+                <div class="doc-box ${hasFile ? 'doc-uploaded' : 'doc-missing'}" ${hasFile ? `onclick="window.open('/api/documents/download/${escHtml(d.driveFileId)}','_blank')" style="cursor:pointer;"` : ''}>
+                  <div class="doc-box-actions" onclick="event.stopPropagation()">
+                    ${(hasFile || isInDb) ? `<button class="doc-box-btn delete" onclick="deleteDoc('${escHtml(d.driveFileId || '')}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
                   </div>
                   <div class="doc-box-icon ${hasFile ? 'uploaded' : 'missing'}">
                     ${hasFile
@@ -1239,12 +1239,12 @@
                   </div>
                   <div class="doc-box-name">${escHtml(d.name)} ${expiryBadge}</div>
                   <div class="doc-box-status">${hasFile ? 'อัปโหลดแล้ว' : 'ยังไม่มีไฟล์'}</div>
-                  <div class="doc-box-upload">
+                  <div class="doc-box-upload" onclick="event.stopPropagation()">
                     <label><svg style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>${hasFile ? 'เปลี่ยนไฟล์' : 'อัปโหลด'}
                       <input type="file" accept=".pdf" style="position:absolute;opacity:0;width:0;height:0;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
                     </label>
                   </div>
-                  <div class="doc-box-expiry"><input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" title="วันหมดอายุ"></div>
+                  <div class="doc-box-expiry" onclick="event.stopPropagation()"><input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" title="วันหมดอายุ"></div>
                 </div>`;
               }).join('');
             })()}
@@ -1586,8 +1586,10 @@
 
     async function deleteDoc(fileId, sheet, docName) {
       if (!confirm('ต้องการลบเอกสารนี้?')) return;
-      // Delete file from Drive (may fail if already deleted, that's ok)
-      try { await api('/documents/' + fileId, { method: 'DELETE' }); } catch {}
+      // Delete file from Drive (skip if no fileId)
+      if (fileId) {
+        try { await api('/documents/' + fileId, { method: 'DELETE' }); } catch {}
+      }
       // Remove document row from database
       const res = await api('/documents/' + encodeURIComponent(sheet) + '/row/' + encodeURIComponent(docName), { method: 'DELETE' });
       if (res?.success) { toast('ลบสำเร็จ'); loadCompanyDetail(sheet); }
