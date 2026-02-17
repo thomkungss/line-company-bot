@@ -691,7 +691,9 @@
       const svg = document.getElementById('toastSvg');
       const msgEl = document.getElementById('toastMsg');
       circle.className = 'toast-icon-circle loading';
+      circle.style.animation = '';
       svg.innerHTML = '';
+      svg.style.animation = '';
       msgEl.textContent = msg || 'กำลังบันทึก...';
       if (_toastTimer) clearTimeout(_toastTimer);
       overlay.classList.add('show');
