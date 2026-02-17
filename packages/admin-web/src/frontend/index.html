@@ -1156,14 +1156,18 @@
               <input type="file" id="sealUploadFile" accept="image/*" style="position:absolute;opacity:0;width:0;height:0;" onchange="uploadSeal('${escHtml(sheet)}')">
             </label>
           </div>
-          <div class="card" style="margin-bottom:0;display:flex;flex-direction:column;gap:14px;">
-            <div class="form-group" style="margin-bottom:0;">
-              <label>ชื่อบริษัท (ภาษาไทย)</label>
-              <input type="text" id="field-companyNameTh" value="${escHtml(c.companyNameTh || '')}">
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label>ชื่อบริษัท (ภาษาไทย)</label>
+                <input type="text" id="field-companyNameTh" value="${escHtml(c.companyNameTh || '')}">
+              </div>
             </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label>ชื่อบริษัท (English)</label>
-              <input type="text" id="field-companyNameEn" value="${escHtml(c.companyNameEn || '')}">
+            <div class="card" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label>ชื่อบริษัท (English)</label>
+                <input type="text" id="field-companyNameEn" value="${escHtml(c.companyNameEn || '')}">
+              </div>
             </div>
           </div>
         </div>
