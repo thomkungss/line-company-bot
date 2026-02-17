@@ -218,7 +218,7 @@ documentsRouter.get('/download/:fileId', async (req: Request, res: Response) => 
     );
 
     res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
     ((fileRes as any).data as Readable).pipe(res);
   } catch (err: any) {
     res.status(404).json({ error: 'File not found' });
