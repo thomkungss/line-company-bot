@@ -197,13 +197,32 @@ companiesRouter.get('/all-people', async (_req: Request, res: Response) => {
     const names = await listCompanySheets();
     const directorNames = new Set<string>();
     const shareholderNames = new Set<string>();
+    const directorDetails: { name: string; position: string; company: string }[] = [];
+    const shareholderDetails: { name: string; shares: number; percentage: number; company: string }[] = [];
+    const documentDetails: { name: string; company: string; expiryDate: string; driveUrl: string; driveFileId: string }[] = [];
 
     await Promise.all(
       names.map(async (name) => {
         try {
           const c = await parseCompanySheet(name);
-          c.directors.forEach(d => { if (d.name) directorNames.add(d.name); });
-          c.shareholders.forEach(s => { if (s.name) shareholderNames.add(s.name); });
+          const coName = c.companyNameTh || name;
+          c.directors.forEach(d => {
+            if (d.name) {
+              directorNames.add(d.name);
+              directorDetails.push({ name: d.name, position: d.position || '', company: coName });
+            }
+          });
+          c.shareholders.forEach(s => {
+            if (s.name) {
+              shareholderNames.add(s.name);
+              shareholderDetails.push({ name: s.name, shares: s.shares || 0, percentage: s.percentage || 0, company: coName });
+            }
+          });
+          c.documents.forEach(d => {
+            if (d.name) {
+              documentDetails.push({ name: d.name, company: coName, expiryDate: d.expiryDate || '', driveUrl: d.driveUrl || '', driveFileId: d.driveFileId || '' });
+            }
+          });
         } catch {}
       })
     );
@@ -211,6 +230,9 @@ companiesRouter.get('/all-people', async (_req: Request, res: Response) => {
     res.json({
       directors: [...directorNames].sort(),
       shareholders: [...shareholderNames].sort(),
+      directorDetails,
+      shareholderDetails,
+      documentDetails,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
