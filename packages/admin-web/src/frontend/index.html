@@ -233,7 +233,7 @@
 
     /* Upload row */
     .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-    .doc-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; aspect-ratio: 1; justify-content: center; gap: 8px; transition: all 0.15s; position: relative; }
+    .doc-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 180px; justify-content: center; gap: 8px; transition: all 0.15s; position: relative; }
     .doc-box:hover { border-color: #d1d5db; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     .doc-box.doc-uploaded { border-color: #bbf7d0; background: #f0fdf4; }
     .doc-box.doc-missing { border-color: #fecaca; background: #fef2f2; }
@@ -255,7 +255,7 @@
     .doc-box-upload label:hover { background: rgba(59,130,246,0.08); }
     .doc-box-expiry { width: 100%; }
     .doc-box-expiry input { width: 100%; padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.72em; background: #fff; text-align: center; }
-    .doc-add-box { background: #f8fafc; border: 2px dashed #d1d5db; border-radius: 12px; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.15s; }
+    .doc-add-box { background: #f8fafc; border: 2px dashed #d1d5db; border-radius: 12px; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.15s; }
     .doc-add-box:hover { border-color: #3b82f6; background: #eff6ff; }
     .doc-add-box svg { width: 28px; height: 28px; stroke: #9ca3af; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
     .doc-add-box:hover svg { stroke: #3b82f6; }
