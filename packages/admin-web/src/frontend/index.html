@@ -1247,16 +1247,12 @@
 
     // ===== Save All (general info + directors + shareholders) =====
     async function saveAll(sheet) {
-      let errors = 0;
-
-      // 1. Save general info
-      try { await saveGeneralInfo(sheet, true); } catch { errors++; }
-
-      // 2. Save directors
-      try { await saveDirectors(sheet, true); } catch { errors++; }
-
-      // 3. Save shareholders
-      try { await saveShareholders(sheet, true); } catch { errors++; }
+      const results = await Promise.allSettled([
+        saveGeneralInfo(sheet, true),
+        saveDirectors(sheet, true),
+        saveShareholders(sheet, true),
+      ]);
+      const errors = results.filter(r => r.status === 'rejected').length;
 
       if (errors === 0) {
         toast('บันทึกทั้งหมดสำเร็จ');
@@ -1278,23 +1274,17 @@
         { label: 'วัตถุประสงค์', id: 'field-objectives' },
       ];
 
-      let saved = 0;
-      let errors = 0;
-      for (const f of fields) {
+      const promises = fields.map(f => {
         const el = document.getElementById(f.id);
-        if (!el) continue;
-        const value = el.value;
-        try {
-          const res = await api('/companies/' + encodeURIComponent(sheet), {
-            method: 'PUT',
-            body: JSON.stringify({ label: f.label, value }),
-          });
-          if (res?.success) saved++;
-          else errors++;
-        } catch {
-          errors++;
-        }
-      }
+        if (!el) return Promise.resolve(null);
+        return api('/companies/' + encodeURIComponent(sheet), {
+          method: 'PUT',
+          body: JSON.stringify({ label: f.label, value: el.value }),
+        });
+      });
+      const results = await Promise.all(promises);
+      const saved = results.filter(r => r?.success).length;
+      const errors = results.filter(r => r && !r.success).length;
 
       if (!silent) {
         if (errors === 0) toast(`บันทึกสำเร็จ (${saved} fields)`);
