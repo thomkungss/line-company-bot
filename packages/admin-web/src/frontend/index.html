@@ -224,6 +224,13 @@
     .company-card { cursor: pointer; transition: border-color 0.15s; }
     .company-card:hover { border-color: #d1d5db; }
 
+    /* Drag-and-drop reordering */
+    .drag-handle { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #c0c0c0; cursor: grab; font-size: 1.1em; flex-shrink: 0; border-radius: 4px; transition: color 0.15s, background 0.15s; user-select: none; margin-right: 8px; }
+    .drag-handle:hover { color: #6b7280; background: #f3f4f6; }
+    .drag-handle:active { cursor: grabbing; }
+    .company-card.dragging { opacity: 0.4; border: 1px dashed #93c5fd; background: #f8faff; }
+    .company-card.drag-over { border-top: 3px solid #3b82f6; }
+
     /* Seal image */
     .seal-preview { max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 8px; }
 
@@ -511,6 +518,18 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
         <button class="btn btn-danger" id="confirmDeleteBtn">ลบบริษัท</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Document Modal -->
+  <div class="modal-overlay" id="deleteDocModal">
+    <div class="modal">
+      <h3>ยืนยันการลบเอกสาร</h3>
+      <p style="margin-bottom:16px;">คุณต้องการลบเอกสาร <strong id="deleteDocName"></strong> หรือไม่?</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeAllModals()">ยกเลิก</button>
+        <button class="btn btn-danger" id="confirmDeleteDocBtn">ลบเอกสาร</button>
       </div>
     </div>
   </div>
@@ -1007,13 +1026,70 @@
     }
 
     async function loadCompanies() {
-      if (!companiesData.length) companiesData = await api('/companies') || [];
+      if (!companiesData.length) {
+        companiesData = await api('/companies') || [];
+        companiesData = applySavedOrder(companiesData);
+      }
       renderCompanyList();
       document.getElementById('companyDetail').style.display = 'none';
     }
 
     function filterCompanies() {
       renderCompanyList();
+    }
+
+    // ===== Drag-and-Drop Reordering =====
+    function getSavedCompanyOrder() {
+      try { return JSON.parse(localStorage.getItem('companyOrder')) || []; } catch(e) { return []; }
+    }
+    function saveCompanyOrder(orderedSheetNames) {
+      localStorage.setItem('companyOrder', JSON.stringify(orderedSheetNames));
+    }
+    function applySavedOrder(arr) {
+      var order = getSavedCompanyOrder();
+      if (!order.length) return arr;
+      var map = {};
+      arr.forEach(function(c) { map[c.sheetName] = c; });
+      var sorted = [];
+      order.forEach(function(name) { if (map[name]) { sorted.push(map[name]); delete map[name]; } });
+      Object.keys(map).forEach(function(k) { sorted.push(map[k]); });
+      return sorted;
+    }
+
+    var dragSrcIndex = null;
+    function handleDragStart(e) {
+      var card = e.target.closest('.company-card');
+      if (!card) return;
+      dragSrcIndex = parseInt(card.dataset.idx);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragSrcIndex);
+    }
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var card = e.target.closest('.company-card');
+      if (card) card.classList.add('drag-over');
+    }
+    function handleDragLeave(e) {
+      var card = e.target.closest('.company-card');
+      if (card) card.classList.remove('drag-over');
+    }
+    function handleDrop(e) {
+      e.preventDefault();
+      var card = e.target.closest('.company-card');
+      if (!card) return;
+      card.classList.remove('drag-over');
+      var dropIdx = parseInt(card.dataset.idx);
+      if (dragSrcIndex === null || dragSrcIndex === dropIdx) return;
+      var item = companiesData.splice(dragSrcIndex, 1)[0];
+      companiesData.splice(dropIdx, 0, item);
+      saveCompanyOrder(companiesData.map(function(c) { return c.sheetName; }));
+      renderCompanyList();
+    }
+    function handleDragEnd(e) {
+      dragSrcIndex = null;
+      document.querySelectorAll('.company-card').forEach(function(c) { c.classList.remove('dragging', 'drag-over'); });
     }
 
     function showStickyHeader(nameTh, nameEn, regNumber) {
@@ -1079,20 +1155,23 @@
           '</div>';
 
       } else {
-        // List view (default)
-        el.innerHTML = data.map(function(c) {
-          return '<div class="card company-card" onclick="loadCompanyDetail(\'' + escHtml(c.sheetName) + '\')">' +
+        // List view (default) — with drag-and-drop reordering
+        el.innerHTML = data.map(function(c, i) {
+          return '<div class="card company-card" draggable="true" data-idx="' + i + '" onclick="loadCompanyDetail(\'' + escHtml(c.sheetName) + '\')" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-              '<div>' +
-                '<strong>' + escHtml(c.companyNameTh || c.sheetName) + '</strong>' +
-                '<span style="color:#999;font-size:0.85em;margin-left:8px;">' + escHtml(c.companyNameEn || '') + '</span>' +
+              '<div style="display:flex;align-items:center;">' +
+                '<span class="drag-handle" onmousedown="event.stopPropagation()" title="ลากเพื่อจัดเรียง">&#9776;</span>' +
+                '<div>' +
+                  '<strong>' + escHtml(c.companyNameTh || c.sheetName) + '</strong>' +
+                  '<span style="color:#999;font-size:0.85em;margin-left:8px;">' + escHtml(c.companyNameEn || '') + '</span>' +
+                '</div>' +
               '</div>' +
               '<div style="display:flex;gap:8px;align-items:center;">' +
                 '<span class="badge badge-green">' + escHtml(c.registrationNumber || '-') + '</span>' +
                 '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany(\'' + escHtml(c.sheetName) + '\')">ลบ</button>' +
               '</div>' +
             '</div>' +
-            '<div style="margin-top:8px;font-size:0.85em;color:#666;">' +
+            '<div style="margin-top:8px;font-size:0.85em;color:#666;padding-left:32px;">' +
               'ทุน: ' + fmt(c.registeredCapital) + ' | กรรมการ: ' + (c.directorCount || 0) + ' คน | ผู้ถือหุ้น: ' + (c.shareholderCount || 0) + ' คน | เอกสาร: ' + (c.documentCount || 0) +
             '</div>' +
           '</div>';
@@ -1607,17 +1686,24 @@
       }
     }
 
-    async function deleteDoc(fileId, sheet, docName) {
-      if (!confirm('ต้องการลบเอกสารนี้?')) return;
-      // Delete file from Drive (skip if no fileId)
+    let deleteDocCtx = {};
+    function deleteDoc(fileId, sheet, docName) {
+      deleteDocCtx = { fileId, sheet, docName };
+      document.getElementById('deleteDocName').textContent = docName;
+      document.getElementById('deleteDocModal').classList.add('show');
+    }
+    document.getElementById('confirmDeleteDocBtn').addEventListener('click', async () => {
+      const { fileId, sheet, docName } = deleteDocCtx;
+      if (!docName) return;
+      closeAllModals();
+      toast('กำลังลบเอกสาร...');
       if (fileId) {
         try { await api('/documents/' + fileId, { method: 'DELETE' }); } catch {}
       }
-      // Remove document row from database
       const res = await api('/documents/' + encodeURIComponent(sheet) + '/row/' + encodeURIComponent(docName), { method: 'DELETE' });
       if (res?.success) { toast('ลบสำเร็จ'); loadCompanyDetail(sheet); }
       else { toast('ลบไม่สำเร็จ'); }
-    }
+    });
 
     // ===== Edit field (kept for backward compat) =====
     let editCtx = {};
