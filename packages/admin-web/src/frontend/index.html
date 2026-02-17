@@ -31,17 +31,20 @@
 
     /* Cards */
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
-    .stat-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; transition: border-color 0.15s; }
-    .stat-card:hover { border-color: #d1d5db; }
+    .stat-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; transition: all 0.2s; }
+    .stat-card:hover { border-color: #d1d5db; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     .stat-card .label { color: #9ca3af; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
     .stat-card .value { font-size: 1.8em; font-weight: 700; color: #111827; margin-top: 4px; letter-spacing: -0.02em; }
     .stat-card .sub { color: #475569; font-size: 0.82em; margin-top: 2px; font-weight: 500; }
 
     /* Table */
-    .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 16px; transition: box-shadow 0.2s; }
+    .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
     .card h3 { color: #111827; margin-bottom: 16px; font-size: 1em; font-weight: 600; }
     .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .card-header h3 { margin-bottom: 0; }
+    .section-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; margin-right: 8px; vertical-align: middle; }
+    .section-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
     th { background: transparent; padding: 10px 12px; text-align: left; color: #9ca3af; font-weight: 500; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; }
     td { padding: 12px; border-bottom: 1px solid #f3f4f6; color: #374151; }
@@ -51,17 +54,20 @@
     .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.84em; font-weight: 500; transition: all 0.15s; }
     .btn-primary { background: #334155; color: white; }
     .btn-primary:hover { background: #1e293b; }
-    .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
-    .btn-secondary:hover { background: #e5e7eb; }
+    .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; transition: all 0.15s; }
+    .btn-secondary:hover { background: #e5e7eb; border-color: #d1d5db; }
     .btn-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
     .btn-danger:hover { background: #fee2e2; }
+    .btn-icon-delete { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #fecaca; background: #fff5f5; color: #ef4444; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .btn-icon-delete:hover { background: #fee2e2; border-color: #f87171; }
+    .btn-icon-delete svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .btn-sm { padding: 5px 12px; font-size: 0.78em; border-radius: 6px; }
 
     /* Forms */
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 0.82em; color: #6b7280; margin-bottom: 5px; font-weight: 500; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.88em; outline: none; color: #1f2937; background: #ffffff; transition: border-color 0.15s; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #475569; box-shadow: 0 0 0 3px rgba(71,85,105,0.1); }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 0.88em; outline: none; color: #1f2937; background: #f9fafb; transition: all 0.2s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: #ffffff; }
 
     /* Inline form grid */
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -620,6 +626,7 @@
       return res.json();
     }
 
+    let _toastTimer = null;
     function toast(msg) {
       const overlay = document.getElementById('toastOverlay');
       const circle = document.getElementById('toastIconCircle');
@@ -633,8 +640,9 @@
       svg.style.animation = 'none'; svg.offsetHeight; svg.style.animation = 'toastPop 0.4s ease';
       circle.style.animation = 'none'; circle.offsetHeight; circle.style.animation = 'toastScaleIn 0.35s ease';
       msgEl.textContent = msg;
+      if (_toastTimer) clearTimeout(_toastTimer);
       overlay.classList.add('show');
-      setTimeout(() => overlay.classList.remove('show'), 2000);
+      _toastTimer = setTimeout(() => overlay.classList.remove('show'), 2000);
     }
 
     function fmt(n) { return n ? n.toLocaleString('th-TH') : '-'; }
@@ -1083,9 +1091,9 @@
         <!-- General Info Section -->
         <div class="card">
           <div class="card-header">
-            <h3>ข้อมูลทั่วไป</h3>
+            <h3><span class="section-icon" style="background:#eff6ff;color:#3b82f6;"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>ข้อมูลทั่วไป</h3>
+            <span style="color:#9ca3af;font-size:0.8em;background:#f9fafb;padding:4px 12px;border-radius:20px;">ข้อมูล ณ ${escHtml(c.dataDate || '-')}</span>
           </div>
-          <p style="color:#999;font-size:0.85em;margin-bottom:16px;">ข้อมูล ณ วันที่: ${escHtml(c.dataDate || '-')}</p>
           <div class="form-grid">
             <div class="form-group">
               <label>ชื่อบริษัท (ภาษาไทย)</label>
@@ -1116,22 +1124,14 @@
               <textarea id="field-objectives" rows="2">${escHtml(c.objectives || '')}</textarea>
             </div>
           </div>
-        </div>
-
-        <!-- Seal Section -->
-        <div class="card">
-          <div class="card-header">
-            <h3>ตราประทับ</h3>
-          </div>
-          <div id="sealSection">
+          <div style="border-top:1px solid #e5e7eb;margin-top:16px;padding-top:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <span style="font-weight:600;font-size:0.9em;color:#374151;">ตราประทับ</span>
             ${(function(){
               const src = c.sealImageUrl || (c.sealImageDriveId ? '/api/documents/download/' + c.sealImageDriveId : '');
-              return src ? '<img src="' + escHtml(src) + '" class="seal-preview" onerror="this.style.display=\'none\'">' : '<p style="color:#999;font-size:0.85em;">ยังไม่มีตราประทับ</p>';
+              return src ? '<img src="' + escHtml(src) + '" style="max-width:80px;max-height:80px;border-radius:6px;border:1px solid #e5e7eb;" onerror="this.style.display=\'none\'">' : '<span style="color:#999;font-size:0.85em;">ยังไม่มี</span>';
             })()}
-            <div style="margin-top:8px;">
-              <input type="file" id="sealUploadFile" accept="image/*" style="font-size:0.85em;">
-              <button class="btn btn-sm btn-primary" onclick="uploadSeal('${escHtml(sheet)}')">อัปโหลดตราประทับ</button>
-            </div>
+            <input type="file" id="sealUploadFile" accept="image/*" style="font-size:0.8em;">
+            <button class="btn btn-sm btn-primary" onclick="uploadSeal('${escHtml(sheet)}')">อัปโหลด</button>
           </div>
         </div>
 
@@ -1139,7 +1139,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="card">
             <div class="card-header">
-              <h3>กรรมการ (<span id="directorCount">${(c.directors || []).length}</span> คน)</h3>
+              <h3><span class="section-icon" style="background:#f0fdf4;color:#22c55e;"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>กรรมการ (<span id="directorCount">${(c.directors || []).length}</span> คน)</h3>
               <button class="btn btn-sm btn-secondary" onclick="addDirectorRow()">+ เพิ่มกรรมการ</button>
             </div>
             <table class="dynamic-table" id="directorsTable">
@@ -1149,7 +1149,7 @@
           </div>
           <div class="card">
             <div class="card-header">
-              <h3>ผู้ถือหุ้น (<span id="shareholderCount">${(c.shareholders || []).length}</span> คน)</h3>
+              <h3><span class="section-icon" style="background:#fefce8;color:#eab308;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>ผู้ถือหุ้น (<span id="shareholderCount">${(c.shareholders || []).length}</span> คน)</h3>
               <button class="btn btn-sm btn-secondary" onclick="addShareholderRow()">+ เพิ่มผู้ถือหุ้น</button>
             </div>
             <table class="dynamic-table" id="shareholdersTable">
@@ -1162,7 +1162,7 @@
         <!-- Documents Section -->
         <div class="card">
           <div class="card-header">
-            <h3>เอกสาร (<span id="documentCount">${(c.documents || []).length}</span> รายการ)</h3>
+            <h3><span class="section-icon" style="background:#fef2f2;color:#ef4444;"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>เอกสาร (<span id="documentCount">${(c.documents || []).length}</span> รายการ)</h3>
           </div>
           <div id="documentsSection">
             ${(() => {
@@ -1194,7 +1194,7 @@
                     ${hasFile ? 'อัปโหลดใหม่' : 'อัปโหลด'}
                     <input type="file" accept=".pdf" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
                   </label>
-                  ${hasFile ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบไฟล์" style="padding:4px 8px;">&#128465;</button>` : ''}
+                  ${hasFile ? `<button class="btn-icon-delete" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบไฟล์"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
                 </div>`;
               }).join('');
             })()}
@@ -1216,7 +1216,9 @@
 
         <!-- Save All Button -->
         <div style="text-align:center;margin:24px 0;">
-          <button class="btn btn-primary" style="padding:12px 48px;font-size:1em;" onclick="saveAll('${escHtml(sheet)}')">บันทึกทั้งหมด</button>
+          <button class="btn btn-primary" style="padding:14px 56px;font-size:1em;border-radius:12px;background:linear-gradient(135deg,#334155,#1e293b);box-shadow:0 4px 14px rgba(30,41,59,0.3);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(30,41,59,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(30,41,59,0.3)'" onclick="saveAll('${escHtml(sheet)}')">
+            <svg style="width:16px;height:16px;vertical-align:middle;margin-right:6px;margin-top:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>บันทึกทั้งหมด
+          </button>
         </div>
       `;
 
@@ -1235,7 +1237,6 @@
 
     // ===== Save All (general info + directors + shareholders) =====
     async function saveAll(sheet) {
-      toast('กำลังบันทึก...');
       let errors = 0;
 
       // 1. Save general info
@@ -1330,7 +1331,7 @@
         return `<tr>
           <td>${i + 1}</td>
           <td><input type="text" value="${escHtml(d.name)}" list="directorNamesList" onchange="directorsData[${i}].name=this.value"></td>
-          <td><button class="btn btn-sm btn-danger" onclick="removeDirectorRow(${i})">ลบ</button></td>
+          <td><button class="btn-icon-delete" onclick="removeDirectorRow(${i})" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
         </tr>`;
       }).join('');
       const countEl = document.getElementById('directorCount');
@@ -1392,7 +1393,7 @@
           <td><input type="text" value="${escHtml(s.name)}" list="shareholderNamesList" onchange="shareholdersData[${i}].name=this.value"></td>
           <td><input type="number" value="${s.shares || ''}" onchange="shareholdersData[${i}].shares=Number(this.value)"></td>
           <td><input type="number" step="0.01" value="${s.percentage || ''}" onchange="shareholdersData[${i}].percentage=Number(this.value)"></td>
-          <td><button class="btn btn-sm btn-danger" onclick="removeShareholderRow(${i})">ลบ</button></td>
+          <td><button class="btn-icon-delete" onclick="removeShareholderRow(${i})" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
         </tr>`;
       }).join('');
       const countEl = document.getElementById('shareholderCount');
