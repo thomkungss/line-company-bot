@@ -1,4 +1,4 @@
 export * from './types';
 export * from './google-auth';
-export * from './sheets-parser';
+export * from './db';
 export * from './utils';

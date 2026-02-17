@@ -9,6 +9,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "googleapis": "^140.0.0"
   },
   "devDependencies": {
