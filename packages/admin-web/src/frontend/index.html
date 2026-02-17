@@ -362,7 +362,7 @@
       <div class="card" id="expiringDocsCard" style="display:none;">
         <h3 style="color:#e65100;">เอกสารใกล้หมดอายุ</h3>
         <table>
-          <thead><tr><th>บริษัท</th><th>เอกสาร</th><th>วันหมดอายุ</th><th>สถานะ</th></tr></thead>
+          <thead><tr><th>บริษัท</th><th>เอกสาร</th><th>วันหมดอายุ</th><th>สถานะ</th><th></th></tr></thead>
           <tbody id="expiringDocsTable"></tbody>
         </table>
       </div>
@@ -784,6 +784,7 @@
             <td>${escHtml(d.docName)}</td>
             <td>${escHtml(d.expiryDate)}</td>
             <td><span class="badge ${badgeClass}">${statusText}</span></td>
+            <td><label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:#3b82f6;font-size:0.82em;font-weight:500;" title="อัปโหลดเอกสารใหม่"><svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>อัปโหลดใหม่<input type="file" accept=".pdf" style="position:absolute;opacity:0;width:0;height:0;" onchange="uploadDocForName('${escHtml(d.sheetName)}','${escHtml(d.docName)}',this)"></label></td>
           </tr>`;
         }).join('');
       } catch {}
