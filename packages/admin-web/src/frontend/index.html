@@ -1187,8 +1187,8 @@
                 const isRequired = REQUIRED_DOCS.includes(d.name);
                 const hasFile = !!d.driveFileId;
                 const statusIcon = hasFile
-                  ? '<span style="color:#22c55e;font-size:1.1em;" title="อัปโหลดแล้ว">&#10004;</span>'
-                  : '<span style="color:#ef4444;font-size:1.1em;" title="ยังไม่ได้อัปโหลด">&#10008;</span>';
+                  ? '<svg style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+                  : '<svg style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
                 const expiryStatus = getExpiryStatus(d.expiryDate);
                 const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
                 return `
@@ -1916,7 +1916,7 @@
             if (res.failed > 0) html += ' <span style="color:#e74c3c;">(' + res.failed + ' ล้มเหลว)</span>';
             html += '<div style="margin-top:8px;font-size:0.85em;max-height:150px;overflow-y:auto;">';
             (res.results || []).forEach(function(r) {
-              const icon = r.success ? '<span style="color:#1DB446;">&#10004;</span>' : '<span style="color:#e74c3c;">&#10008;</span>';
+              const icon = r.success ? '<svg style="width:14px;height:14px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg style="width:14px;height:14px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
               html += '<div>' + icon + ' ' + escHtml(r.sheetName) + (r.error ? ' — ' + escHtml(r.error) : '') + '</div>';
             });
             html += '</div></div>';
