@@ -158,12 +158,18 @@
     /* Toast — center popup */
     .toast-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 300; background: rgba(0,0,0,0.3); backdrop-filter: blur(2px); }
     .toast-overlay.show { display: flex; animation: fadeIn 0.2s; }
-    .toast-box { background: white; border-radius: 14px; padding: 32px 40px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.15); min-width: 280px; }
-    .toast-icon { font-size: 2.5em; margin-bottom: 8px; }
-    .toast-icon.success { color: #16a34a; }
-    .toast-icon.error { color: #ef4444; }
-    .toast-msg { font-size: 1em; color: #111827; font-weight: 500; }
+    .toast-box { background: white; border-radius: 14px; padding: 40px 48px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.15); min-width: 300px; position: relative; }
+    .toast-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border: 1.5px solid #d1d5db; border-radius: 8px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1em; color: #9ca3af; }
+    .toast-close:hover { background: #f3f4f6; }
+    .toast-icon-circle { width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+    .toast-icon-circle.success { background: #4ade80; }
+    .toast-icon-circle.error { background: #ef4444; }
+    .toast-icon-circle svg { width: 44px; height: 44px; }
+    .toast-msg { font-size: 1.25em; color: #111827; font-weight: 600; }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    @keyframes toastScaleIn { 0% { transform: scale(0); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+    @keyframes toastPop { 0% { opacity: 0; stroke-dashoffset: 30; } 40% { opacity: 1; } 100% { stroke-dashoffset: 0; } }
+    .toast-icon-circle svg { stroke-dasharray: 30; }
 
     /* Chat log */
     .chat-bubble { padding: 10px 14px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; font-size: 0.85em; }
@@ -505,7 +511,10 @@
   <!-- Toast Popup -->
   <div class="toast-overlay" id="toastOverlay" onclick="this.classList.remove('show')">
     <div class="toast-box" onclick="event.stopPropagation()">
-      <div class="toast-icon" id="toastIcon"></div>
+      <button class="toast-close" onclick="document.getElementById('toastOverlay').classList.remove('show')">&times;</button>
+      <div class="toast-icon-circle" id="toastIconCircle">
+        <svg id="toastSvg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></svg>
+      </div>
       <div class="toast-msg" id="toastMsg"></div>
     </div>
   </div>
@@ -613,11 +622,16 @@
 
     function toast(msg) {
       const overlay = document.getElementById('toastOverlay');
-      const icon = document.getElementById('toastIcon');
+      const circle = document.getElementById('toastIconCircle');
+      const svg = document.getElementById('toastSvg');
       const msgEl = document.getElementById('toastMsg');
       const isError = msg.includes('ผิดพลาด') || msg.includes('error') || msg.includes('ไม่');
-      icon.textContent = isError ? '\u2716' : '\u2714';
-      icon.className = 'toast-icon ' + (isError ? 'error' : 'success');
+      circle.className = 'toast-icon-circle ' + (isError ? 'error' : 'success');
+      svg.innerHTML = isError
+        ? '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>'
+        : '<polyline points="20 6 9 17 4 12"></polyline>';
+      svg.style.animation = 'none'; svg.offsetHeight; svg.style.animation = 'toastPop 0.4s ease';
+      circle.style.animation = 'none'; circle.offsetHeight; circle.style.animation = 'toastScaleIn 0.35s ease';
       msgEl.textContent = msg;
       overlay.classList.add('show');
       setTimeout(() => overlay.classList.remove('show'), 2000);
