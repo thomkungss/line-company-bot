@@ -170,6 +170,31 @@
     .chat-bubble.assistant { background: #f3f4f6; color: #374151; }
     .chat-meta { font-size: 0.75em; color: #9ca3af; margin-bottom: 2px; }
 
+    /* Company sticky header */
+    .company-sticky-header {
+      position: sticky; top: 0; z-index: 40;
+      background: #dc2626; color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(220,38,38,0.25);
+    }
+    .company-sticky-header .csh-info { flex: 1; min-width: 0; }
+    .company-sticky-header .csh-name { font-weight: 700; font-size: 1.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .company-sticky-header .csh-sub { font-size: 0.82em; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .company-sticky-header .csh-back { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 6px 16px; border-radius: 6px; font-size: 0.84em; cursor: pointer; font-weight: 500; transition: background 0.15s; flex-shrink: 0; margin-left: 16px; }
+    .company-sticky-header .csh-back:hover { background: rgba(255,255,255,0.35); }
+
+    /* Company search */
+    .company-search { position: relative; }
+    .company-search input { padding: 8px 12px 8px 34px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.84em; width: 220px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+    .company-search input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.1); }
+    .company-search .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+    .company-search .search-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
     /* Company card clickable */
     .company-card { cursor: pointer; transition: border-color 0.15s; }
     .company-card:hover { border-color: #d1d5db; }
@@ -289,9 +314,20 @@
             <button data-cview="table" onclick="setCompanyView('table')">&#9638; ตาราง</button>
             <button data-cview="grid" onclick="setCompanyView('grid')">&#9643; กล่อง</button>
           </div>
+          <div class="company-search" id="companySearchBox">
+            <span class="search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input type="text" id="companySearchInput" placeholder="ค้นหาบริษัท..." oninput="filterCompanies()">
+          </div>
           <button class="btn btn-primary" onclick="openCreateCompanyModal()">+ เพิ่มบริษัทใหม่</button>
           <button class="btn btn-secondary" onclick="openCSVModal()">&#8593; อัปโหลด CSV</button>
         </div>
+      </div>
+      <div id="companyStickyHeader" class="company-sticky-header">
+        <div class="csh-info">
+          <div class="csh-name" id="cshName"></div>
+          <div class="csh-sub" id="cshSub"></div>
+        </div>
+        <button class="csh-back" onclick="backToList()">&larr; กลับรายการ</button>
       </div>
       <div id="companyList"></div>
       <div id="companyDetail" style="display:none;"></div>
@@ -673,6 +709,9 @@
       if (!c) return;
 
       document.getElementById('companyList').style.display = 'none';
+      document.getElementById('companySearchBox').style.display = 'none';
+      document.getElementById('companyViewToggle').style.display = 'none';
+      showStickyHeader(c.companyNameTh || c.sheetName, c.companyNameEn, c.registrationNumber);
       const el = document.getElementById('companyDetail');
       el.style.display = 'block';
 
@@ -819,10 +858,36 @@
       document.getElementById('companyDetail').style.display = 'none';
     }
 
+    function filterCompanies() {
+      renderCompanyList();
+    }
+
+    function showStickyHeader(nameTh, nameEn, regNumber) {
+      var header = document.getElementById('companyStickyHeader');
+      document.getElementById('cshName').textContent = nameTh || '';
+      var subParts = [];
+      if (nameEn) subParts.push(nameEn);
+      if (regNumber) subParts.push('เลขทะเบียน: ' + regNumber);
+      document.getElementById('cshSub').textContent = subParts.join(' | ');
+      header.style.display = 'flex';
+    }
+
+    function hideStickyHeader() {
+      document.getElementById('companyStickyHeader').style.display = 'none';
+    }
+
     function renderCompanyList() {
       var el = document.getElementById('companyList');
       el.style.display = 'block';
+      var searchVal = (document.getElementById('companySearchInput')?.value || '').trim().toLowerCase();
       var data = companiesData;
+      if (searchVal) {
+        data = data.filter(function(c) {
+          return (c.companyNameTh || '').toLowerCase().indexOf(searchVal) !== -1 ||
+                 (c.companyNameEn || '').toLowerCase().indexOf(searchVal) !== -1 ||
+                 (c.registrationNumber || '').toLowerCase().indexOf(searchVal) !== -1;
+        });
+      }
 
       if (companyViewMode === 'table') {
         el.innerHTML = '<table class="company-table"><thead><tr>' +
@@ -912,12 +977,13 @@
       currentCompany = c;
 
       document.getElementById('companyList').style.display = 'none';
+      document.getElementById('companySearchBox').style.display = 'none';
+      document.getElementById('companyViewToggle').style.display = 'none';
+      showStickyHeader(c.companyNameTh || c.sheetName, c.companyNameEn, c.registrationNumber);
       const el = document.getElementById('companyDetail');
       el.style.display = 'block';
 
       el.innerHTML = `
-        <button class="btn btn-secondary" onclick="backToList()" style="margin-bottom:16px;">&larr; กลับ</button>
-
         <!-- General Info Section -->
         <div class="card">
           <div class="card-header">
@@ -1064,6 +1130,9 @@
     }
 
     function backToList() {
+      hideStickyHeader();
+      document.getElementById('companySearchBox').style.display = '';
+      document.getElementById('companyViewToggle').style.display = '';
       companiesData = [];
       loadCompanies();
     }
