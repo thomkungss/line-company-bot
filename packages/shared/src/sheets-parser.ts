@@ -705,8 +705,8 @@ export async function removeDocumentFromSheet(
     );
     if (looksLikeHeader) break;
 
-    if (nameCell === documentName || nameCell.includes(documentName) || documentName.includes(nameCell)) {
-      // Clear the row
+    if (nameCell === documentName) {
+      // Clear the row (exact match only to prevent accidental deletion)
       await sheets.spreadsheets.values.update({
         spreadsheetId: getSpreadsheetId(),
         range: `'${sheetName}'!A${i + 1}:D${i + 1}`,
