@@ -91,14 +91,24 @@
     .page { display: none; }
     .page.active { display: block; }
 
-    /* Timeline */
-    .timeline-item { padding: 14px 0; border-left: 2px solid #d1d5db; padding-left: 18px; margin-left: 8px; margin-bottom: 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 14px; }
-    .timeline-item:last-child { border-bottom: none; }
-    .timeline-item .field { font-weight: 600; color: #334155; font-size: 0.9em; }
-    .timeline-item .date { font-size: 0.78em; color: #9ca3af; }
-    .timeline-item .diff { margin-top: 6px; font-size: 0.85em; }
-    .timeline-item .old { color: #ef4444; }
-    .timeline-item .new { color: #2563eb; }
+    /* Version history */
+    .ver-group { margin-bottom: 24px; }
+    .ver-group-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 0; }
+    .ver-group-date { font-weight: 600; font-size: 0.85em; color: #374151; background: #f1f5f9; padding: 4px 14px; border-radius: 20px; }
+    .ver-group-line { flex: 1; height: 1px; background: #e5e7eb; }
+    .ver-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 18px; margin-bottom: 8px; transition: all 0.15s; }
+    .ver-card:hover { border-color: #d1d5db; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .ver-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .ver-field { font-weight: 600; font-size: 0.88em; color: #1f2937; }
+    .ver-company { font-size: 0.75em; background: #eff6ff; color: #3b82f6; padding: 2px 10px; border-radius: 20px; font-weight: 500; margin-left: 8px; }
+    .ver-time { font-size: 0.78em; color: #9ca3af; }
+    .ver-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82em; }
+    .ver-val { padding: 8px 12px; border-radius: 8px; line-height: 1.5; word-break: break-word; }
+    .ver-val.old { background: #fef2f2; color: #991b1b; border-left: 3px solid #fca5a5; }
+    .ver-val.new { background: #f0fdf4; color: #166534; border-left: 3px solid #86efac; }
+    .ver-val-label { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.04em; color: #9ca3af; margin-bottom: 2px; font-weight: 500; }
+    .ver-meta { font-size: 0.75em; color: #9ca3af; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+    .ver-meta svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
 
     /* Checkbox grid */
     .perm-grid { overflow-x: auto; }
@@ -363,12 +373,12 @@
       <div class="topbar">
         <h1>ประวัติเปลี่ยนแปลง</h1>
         <div class="actions">
-          <select id="versionCompanyFilter" onchange="filterVersions()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:0.85em;min-width:180px;">
-            <option value="">ทั้งหมด</option>
+          <select id="versionCompanyFilter" onchange="filterVersions()" style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.85em;min-width:200px;background:#f9fafb;color:#374151;">
+            <option value="">ทุกบริษัท</option>
           </select>
         </div>
       </div>
-      <div class="card" id="versionList"><div class="loading">กำลังโหลด...</div></div>
+      <div id="versionList"><div class="loading">กำลังโหลด...</div></div>
     </div>
 
     <!-- Permissions -->
@@ -1577,25 +1587,59 @@
       allVersions = await api('/versions') || [];
       const select = document.getElementById('versionCompanyFilter');
       const companies = [...new Set(allVersions.map(v => v.companySheet).filter(Boolean))].sort();
-      select.innerHTML = '<option value="">ทั้งหมด</option>' + companies.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+      select.innerHTML = '<option value="">ทุกบริษัท</option>' + companies.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
       filterVersions();
+    }
+    function fmtVerDate(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      if (isNaN(d)) return ts;
+      return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    function fmtVerTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      if (isNaN(d)) return '';
+      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    }
+    function truncVal(v, max) {
+      if (!v) return '-';
+      return v.length > max ? v.slice(0, max) + '...' : v;
     }
     function filterVersions() {
       const selected = document.getElementById('versionCompanyFilter').value;
       const filtered = selected ? allVersions.filter(v => v.companySheet === selected) : allVersions;
       const el = document.getElementById('versionList');
-      if (!filtered.length) { el.innerHTML = '<p style="color:#999;">ไม่พบประวัติการเปลี่ยนแปลง</p>'; return; }
-      el.innerHTML = filtered.slice(0, 50).map(v => `
-        <div class="timeline-item">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span class="field">${escHtml(v.fieldChanged)} <span class="badge badge-blue">${escHtml(v.companySheet)}</span></span>
-            <span class="date">${escHtml(v.timestamp)}</span>
+      if (!filtered.length) { el.innerHTML = '<div class="card" style="text-align:center;padding:48px;color:#9ca3af;">ไม่พบประวัติการเปลี่ยนแปลง</div>'; return; }
+      // Group by date
+      const groups = {};
+      filtered.slice(0, 80).forEach(v => {
+        const dateKey = fmtVerDate(v.timestamp) || 'ไม่ทราบวันที่';
+        if (!groups[dateKey]) groups[dateKey] = [];
+        groups[dateKey].push(v);
+      });
+      el.innerHTML = Object.entries(groups).map(([date, items]) => `
+        <div class="ver-group">
+          <div class="ver-group-header">
+            <span class="ver-group-date">${escHtml(date)}</span>
+            <div class="ver-group-line"></div>
           </div>
-          <div class="diff">
-            <div class="new">ใหม่: ${escHtml(v.newValue || '-')}</div>
-            <div class="old">เดิม: ${escHtml(v.oldValue || '-')}</div>
-          </div>
-          <div class="date" style="margin-top:4px;">โดย: ${escHtml(v.changedBy || '-')}</div>
+          ${items.map(v => `
+            <div class="ver-card">
+              <div class="ver-card-top">
+                <div>
+                  <span class="ver-field">${escHtml(v.fieldChanged)}</span>
+                  <span class="ver-company">${escHtml(v.companySheet)}</span>
+                </div>
+                <span class="ver-time">${fmtVerTime(v.timestamp)}</span>
+              </div>
+              <div class="ver-diff">
+                <div class="ver-val new"><div class="ver-val-label">ค่าใหม่</div>${escHtml(truncVal(v.newValue, 120))}</div>
+                <div class="ver-val old"><div class="ver-val-label">ค่าเดิม</div>${escHtml(truncVal(v.oldValue, 120))}</div>
+              </div>
+              <div class="ver-meta"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escHtml(v.changedBy || '-')}</div>
+            </div>
+          `).join('')}
         </div>
       `).join('');
     }
