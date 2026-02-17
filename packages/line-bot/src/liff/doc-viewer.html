@@ -144,8 +144,12 @@
     }
 
     function closePage() {
-      try { liff.closeWindow(); } catch (e) {}
-      window.close();
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        try { liff.closeWindow(); } catch (e) {}
+        window.close();
+      }
     }
 
     // Render a single PDF page to a canvas at device-fitting width
