@@ -605,7 +605,7 @@ export async function updateDocumentInSheet(
     );
     if (looksLikeHeader) break;
 
-    if (nameCell === documentName || nameCell.includes(documentName)) {
+    if (nameCell === documentName || nameCell.includes(documentName) || documentName.includes(nameCell)) {
       const oldLink = (rows[i][1] || '').toString();
       const now = new Date();
       const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
@@ -702,7 +702,7 @@ export async function updateDocumentExpiry(
     );
     if (looksLikeHeader) break;
 
-    if (nameCell === documentName || nameCell.includes(documentName)) {
+    if (nameCell === documentName || nameCell.includes(documentName) || documentName.includes(nameCell)) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: getSpreadsheetId(),
         range: `'${sheetName}'!D${i + 1}`,
