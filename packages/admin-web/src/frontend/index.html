@@ -180,7 +180,8 @@
     .toast-icon-circle { width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
     .toast-icon-circle.success { background: #4ade80; }
     .toast-icon-circle.error { background: #ef4444; }
-    .toast-icon-circle.loading { background: transparent; border: 4px solid #e5e7eb; border-top-color: #3b82f6; animation: toastSpin 0.7s linear infinite; }
+    .toast-icon-circle.loading { background: transparent; border: none; position: relative; }
+    .toast-icon-circle.loading::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 4px solid #e5e7eb; border-top-color: #3b82f6; animation: toastSpin 0.7s linear infinite; }
     .toast-icon-circle svg { width: 44px; height: 44px; }
     .toast-msg { font-size: 1.25em; color: #111827; font-weight: 600; }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -691,6 +692,8 @@
       const svg = document.getElementById('toastSvg');
       const msgEl = document.getElementById('toastMsg');
       circle.className = 'toast-icon-circle loading';
+      circle.style.animation = 'none';
+      circle.offsetHeight;
       circle.style.animation = '';
       svg.innerHTML = '';
       svg.style.animation = '';
