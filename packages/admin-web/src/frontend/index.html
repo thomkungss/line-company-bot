@@ -232,20 +232,37 @@
     .dynamic-table input:focus { border-color: #475569; outline: none; box-shadow: 0 0 0 3px rgba(71,85,105,0.1); }
 
     /* Upload row */
-    .doc-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; transition: all 0.15s; }
-    .doc-item:hover { border-color: #d1d5db; background: #ffffff; }
-    .doc-item.doc-missing { border-left: 3px solid #fca5a5; background: #fefefe; }
-    .doc-item.doc-uploaded { border-left: 3px solid #86efac; }
-    .doc-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .doc-item-name { font-weight: 600; font-size: 0.9em; color: #1f2937; display: flex; align-items: center; gap: 6px; }
-    .doc-item-status { font-size: 0.72em; padding: 2px 10px; border-radius: 20px; font-weight: 500; }
-    .doc-item-status.uploaded { background: #f0fdf4; color: #166534; }
-    .doc-item-status.missing { background: #fef2f2; color: #991b1b; }
-    .doc-item-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .doc-add-section { background: #f8fafc; border: 2px dashed #d1d5db; border-radius: 10px; padding: 18px; margin-top: 12px; transition: border-color 0.15s; }
-    .doc-add-section:hover { border-color: #9ca3af; }
-    .doc-add-title { font-weight: 600; font-size: 0.85em; color: #6b7280; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-    .doc-add-title svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .doc-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; aspect-ratio: 1; justify-content: center; gap: 8px; transition: all 0.15s; position: relative; }
+    .doc-box:hover { border-color: #d1d5db; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .doc-box.doc-uploaded { border-color: #bbf7d0; background: #f0fdf4; }
+    .doc-box.doc-missing { border-color: #fecaca; background: #fef2f2; }
+    .doc-box-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .doc-box-icon.uploaded { background: #dcfce7; }
+    .doc-box-icon.missing { background: #fee2e2; }
+    .doc-box-icon svg { width: 20px; height: 20px; }
+    .doc-box-name { font-weight: 600; font-size: 0.82em; color: #1f2937; line-height: 1.3; word-break: break-word; }
+    .doc-box-status { font-size: 0.7em; color: #9ca3af; }
+    .doc-box-actions { display: flex; gap: 4px; position: absolute; top: 8px; right: 8px; opacity: 0; transition: opacity 0.15s; }
+    .doc-box:hover .doc-box-actions { opacity: 1; }
+    .doc-box-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .doc-box-btn:hover { background: #f3f4f6; }
+    .doc-box-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .doc-box-btn.delete { color: #ef4444; border-color: #fecaca; }
+    .doc-box-btn.delete:hover { background: #fef2f2; }
+    .doc-box-upload { width: 100%; margin-top: 2px; }
+    .doc-box-upload label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72em; color: #3b82f6; cursor: pointer; font-weight: 500; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }
+    .doc-box-upload label:hover { background: rgba(59,130,246,0.08); }
+    .doc-box-expiry { width: 100%; }
+    .doc-box-expiry input { width: 100%; padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.72em; background: #fff; text-align: center; }
+    .doc-add-box { background: #f8fafc; border: 2px dashed #d1d5db; border-radius: 12px; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.15s; }
+    .doc-add-box:hover { border-color: #3b82f6; background: #eff6ff; }
+    .doc-add-box svg { width: 28px; height: 28px; stroke: #9ca3af; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .doc-add-box:hover svg { stroke: #3b82f6; }
+    .doc-add-box span { font-size: 0.78em; color: #9ca3af; font-weight: 500; }
+    .doc-add-box:hover span { color: #3b82f6; }
+    .doc-add-panel { display: none; margin-top: 12px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+    .doc-add-panel.show { display: block; }
 
     /* View mode (read-only) */
     .view-header { background: #1e293b; color: white; padding: 22px 24px; border-radius: 10px 10px 0 0; margin-bottom: 0; }
@@ -1197,13 +1214,12 @@
           <div class="card-header">
             <h3><span class="section-icon" style="background:#fef2f2;color:#ef4444;"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>เอกสาร (<span id="documentCount">${(c.documents || []).length}</span> รายการ)</h3>
           </div>
-          <div id="documentsSection">
+          <div id="documentsSection" class="doc-grid">
             ${(() => {
               const REQUIRED_DOCS = ['หนังสือรับรอง', 'ภพ.20', 'บอจ.5'];
               const docs = c.documents || [];
               const docMap = {};
               docs.forEach(d => { docMap[d.name] = d; });
-              // Build merged list: required docs first, then extras
               const mergedDocs = REQUIRED_DOCS.map(name => docMap[name] || { name, driveFileId: null, updatedDate: null, expiryDate: null });
               docs.forEach(d => { if (!REQUIRED_DOCS.includes(d.name)) mergedDocs.push(d); });
               return mergedDocs.map(d => {
@@ -1211,33 +1227,33 @@
                 const expiryStatus = getExpiryStatus(d.expiryDate);
                 const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
                 return `
-                <div class="doc-item ${hasFile ? 'doc-uploaded' : 'doc-missing'}">
-                  <div class="doc-item-top">
-                    <div class="doc-item-name">
-                      ${hasFile
-                        ? '<svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-                        : '<svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'}
-                      ${escHtml(d.name)} ${expiryBadge}
-                    </div>
-                    <span class="doc-item-status ${hasFile ? 'uploaded' : 'missing'}">${hasFile ? 'อัปโหลดแล้ว' : 'ยังไม่มีไฟล์'}</span>
+                <div class="doc-box ${hasFile ? 'doc-uploaded' : 'doc-missing'}">
+                  <div class="doc-box-actions">
+                    ${hasFile ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="doc-box-btn" target="_blank" title="ดาวน์โหลด"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>` : ''}
+                    ${hasFile ? `<button class="doc-box-btn delete" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
                   </div>
-                  <div class="doc-item-actions">
-                    <input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:0.8em;background:#fff;" title="วันหมดอายุ">
-                    ${hasFile ? `<a href="/api/documents/download/${escHtml(d.driveFileId)}" class="btn btn-sm btn-secondary" target="_blank" style="display:inline-flex;align-items:center;gap:4px;"><svg style="width:13px;height:13px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>ดาวน์โหลด</a>` : ''}
-                    <label class="btn btn-sm btn-primary" style="position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
-                      <svg style="width:13px;height:13px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                      ${hasFile ? 'อัปโหลดใหม่' : 'อัปโหลด'}
-                      <input type="file" accept=".pdf" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
+                  <div class="doc-box-icon ${hasFile ? 'uploaded' : 'missing'}">
+                    ${hasFile
+                      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="16 13 11 18 8 15"/></svg>'
+                      : '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>'}
+                  </div>
+                  <div class="doc-box-name">${escHtml(d.name)} ${expiryBadge}</div>
+                  <div class="doc-box-status">${hasFile ? 'อัปโหลดแล้ว' : 'ยังไม่มีไฟล์'}</div>
+                  <div class="doc-box-upload">
+                    <label><svg style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>${hasFile ? 'เปลี่ยนไฟล์' : 'อัปโหลด'}
+                      <input type="file" accept=".pdf" style="position:absolute;opacity:0;width:0;height:0;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
                     </label>
-                    ${hasFile ? `<button class="btn-icon-delete" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบไฟล์"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
                   </div>
+                  <div class="doc-box-expiry"><input type="date" value="${escHtml(expiryToInputValue(d.expiryDate))}" onchange="saveExpiryDate('${escHtml(sheet)}','${escHtml(d.name)}',this.value)" title="วันหมดอายุ"></div>
                 </div>`;
               }).join('');
             })()}
+            <div class="doc-add-box" onclick="document.getElementById('docAddPanel').classList.toggle('show')">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>เพิ่มเอกสาร</span>
+            </div>
           </div>
-
-          <div class="doc-add-section">
-            <div class="doc-add-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> เพิ่มเอกสารใหม่</div>
+          <div class="doc-add-panel" id="docAddPanel">
             <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
               <div style="flex:1;min-width:140px;">
                 <label style="font-size:0.75em;color:#9ca3af;display:block;margin-bottom:4px;">ชื่อเอกสาร</label>
