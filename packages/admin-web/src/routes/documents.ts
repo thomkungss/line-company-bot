@@ -70,18 +70,28 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
       return;
     }
 
-    // Validate PDF only
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    if (ext !== '.pdf' || (req.file.mimetype !== 'application/pdf' && req.file.mimetype !== 'application/x-pdf')) {
-      res.status(400).json({ error: 'อนุญาตเฉพาะไฟล์ PDF เท่านั้น' });
-      return;
-    }
-
     const sheet: string = req.params.sheet as string;
     const documentName: string = (req.body.documentName || '').toString().trim();
     const expiryDate: string | undefined = (req.body.expiryDate || '').toString().trim() || undefined;
 
-    // Build file name: documentName_DD-MM-YYYY.pdf (Bangkok timezone)
+    // Validate file type: ตราประทับ allows images, others require PDF
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const isPdf = ext === '.pdf' || req.file.mimetype === 'application/pdf' || req.file.mimetype === 'application/x-pdf';
+    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext) || req.file.mimetype.startsWith('image/');
+
+    if (documentName === 'ตราประทับ') {
+      if (!isPdf && !isImage) {
+        res.status(400).json({ error: 'อนุญาตเฉพาะไฟล์ PDF หรือรูปภาพ' });
+        return;
+      }
+    } else {
+      if (!isPdf) {
+        res.status(400).json({ error: 'อนุญาตเฉพาะไฟล์ PDF เท่านั้น' });
+        return;
+      }
+    }
+
+    // Build file name: documentName_DD-MM-YYYY.ext (Bangkok timezone)
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -91,7 +101,8 @@ documentsRouter.post('/:sheet', upload.single('file'), async (req: Request, res:
     // Upload to Google Drive — organized by company folder
     const drive = getDriveClient();
     const companyFolderId = await getOrCreateCompanyFolder(drive, sheet);
-    const fileName = documentName ? `${documentName}_${dateSuffix}.pdf` : `${path.basename(req.file.originalname, ext)}_${dateSuffix}.pdf`;
+    const fileExt = ext || '.pdf';
+    const fileName = documentName ? `${documentName}_${dateSuffix}${fileExt}` : `${path.basename(req.file.originalname, ext)}_${dateSuffix}${fileExt}`;
     const driveRes = await drive.files.create({
       requestBody: {
         name: fileName,

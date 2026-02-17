@@ -1141,7 +1141,7 @@
         toast('อัปโหลดตราประทับสำเร็จ');
         loadCompanyDetail(sheet);
       } else {
-        toast('เกิดข้อผิดพลาด');
+        toast(data.error || 'เกิดข้อผิดพลาด');
       }
     }
 
@@ -1339,7 +1339,7 @@
         toast('อัปโหลดสำเร็จ');
         loadCompanyDetail(sheet);
       } else {
-        toast('เกิดข้อผิดพลาด');
+        toast(data.error || 'เกิดข้อผิดพลาด');
       }
     }
 
@@ -1367,7 +1367,7 @@
         toast('อัปโหลดเอกสารสำเร็จ');
         loadCompanyDetail(sheet);
       } else {
-        toast('เกิดข้อผิดพลาด');
+        toast(data.error || 'เกิดข้อผิดพลาด');
       }
     }
 
