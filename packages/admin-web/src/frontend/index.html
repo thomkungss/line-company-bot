@@ -1121,28 +1121,28 @@
           </div>
         </div>
 
-        <!-- Directors Section -->
-        <div class="card">
-          <div class="card-header">
-            <h3>กรรมการ (<span id="directorCount">${(c.directors || []).length}</span> คน)</h3>
-            <button class="btn btn-sm btn-secondary" onclick="addDirectorRow()">+ เพิ่มกรรมการ</button>
+        <!-- Directors + Shareholders Side by Side -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <h3>กรรมการ (<span id="directorCount">${(c.directors || []).length}</span> คน)</h3>
+              <button class="btn btn-sm btn-secondary" onclick="addDirectorRow()">+ เพิ่มกรรมการ</button>
+            </div>
+            <table class="dynamic-table" id="directorsTable">
+              <thead><tr><th style="width:40px;">#</th><th>ชื่อ</th><th>ตำแหน่ง</th><th style="width:50px;"></th></tr></thead>
+              <tbody id="directorsBody"></tbody>
+            </table>
           </div>
-          <table class="dynamic-table" id="directorsTable">
-            <thead><tr><th style="width:50px;">#</th><th>ชื่อ</th><th>ตำแหน่ง</th><th style="width:60px;"></th></tr></thead>
-            <tbody id="directorsBody"></tbody>
-          </table>
-        </div>
-
-        <!-- Shareholders Section -->
-        <div class="card">
-          <div class="card-header">
-            <h3>ผู้ถือหุ้น (<span id="shareholderCount">${(c.shareholders || []).length}</span> คน)</h3>
-            <button class="btn btn-sm btn-secondary" onclick="addShareholderRow()">+ เพิ่มผู้ถือหุ้น</button>
+          <div class="card">
+            <div class="card-header">
+              <h3>ผู้ถือหุ้น (<span id="shareholderCount">${(c.shareholders || []).length}</span> คน)</h3>
+              <button class="btn btn-sm btn-secondary" onclick="addShareholderRow()">+ เพิ่มผู้ถือหุ้น</button>
+            </div>
+            <table class="dynamic-table" id="shareholdersTable">
+              <thead><tr><th style="width:40px;">#</th><th>ชื่อ</th><th style="width:100px;">จำนวนหุ้น</th><th style="width:60px;">%</th><th style="width:50px;"></th></tr></thead>
+              <tbody id="shareholdersBody"></tbody>
+            </table>
           </div>
-          <table class="dynamic-table" id="shareholdersTable">
-            <thead><tr><th style="width:50px;">#</th><th>ชื่อ</th><th style="width:120px;">จำนวนหุ้น</th><th style="width:80px;">%</th><th style="width:60px;"></th></tr></thead>
-            <tbody id="shareholdersBody"></tbody>
-          </table>
         </div>
 
         <!-- Documents Section -->
@@ -1180,7 +1180,7 @@
                     ${hasFile ? 'อัปโหลดใหม่' : 'อัปโหลด'}
                     <input type="file" accept=".pdf" style="position:absolute;opacity:0;left:0;top:0;width:100%;height:100%;cursor:pointer;" onchange="uploadDocForName('${escHtml(sheet)}','${escHtml(d.name)}',this)">
                   </label>
-                  ${hasFile ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}')" title="ลบไฟล์" style="padding:4px 8px;">&#128465;</button>` : ''}
+                  ${hasFile ? `<button class="btn btn-sm btn-danger" onclick="deleteDoc('${escHtml(d.driveFileId)}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบไฟล์" style="padding:4px 8px;">&#128465;</button>` : ''}
                 </div>`;
               }).join('');
             })()}
@@ -1522,10 +1522,14 @@
       }
     }
 
-    async function deleteDoc(fileId, sheet) {
+    async function deleteDoc(fileId, sheet, docName) {
       if (!confirm('ต้องการลบเอกสารนี้?')) return;
-      const res = await api('/documents/' + fileId, { method: 'DELETE' });
+      // Delete file from Drive (may fail if already deleted, that's ok)
+      try { await api('/documents/' + fileId, { method: 'DELETE' }); } catch {}
+      // Remove document row from database
+      const res = await api('/documents/' + encodeURIComponent(sheet) + '/row/' + encodeURIComponent(docName), { method: 'DELETE' });
       if (res?.success) { toast('ลบสำเร็จ'); loadCompanyDetail(sheet); }
+      else { toast('ลบไม่สำเร็จ'); }
     }
 
     // ===== Edit field (kept for backward compat) =====
