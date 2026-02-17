@@ -611,12 +611,16 @@ export async function updateDocumentInSheet(
       const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
       const existingExpiry = (rows[i][3] || '').toString();
 
-      // Update columns B (link), C (date), D (expiry) in one call
+      // Strip old date from name, then add new date
+      const baseName = documentName.replace(/\s*\(\d{2}\/\d{2}\/\d{4}\)\s*$/, '').trim();
+      const nameWithDate = `${baseName} (${dateStr})`;
+
+      // Update columns A (name+date), B (link), C (date), D (expiry)
       await sheets.spreadsheets.values.update({
         spreadsheetId: getSpreadsheetId(),
-        range: `'${sheetName}'!B${i + 1}:D${i + 1}`,
+        range: `'${sheetName}'!A${i + 1}:D${i + 1}`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [[newDriveUrl, dateStr, expiryDate ?? existingExpiry]] },
+        requestBody: { values: [[nameWithDate, newDriveUrl, dateStr, expiryDate ?? existingExpiry]] },
       });
       return { row: i + 1, oldLink };
     }
@@ -651,7 +655,7 @@ export async function addDocumentToSheet(
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [
         ['เอกสารที่เกี่ยวข้อง', '', '', ''],
-        [documentName, driveUrl, dateStr, expiryDate || ''],
+        [`${documentName} (${dateStr})`, driveUrl, dateStr, expiryDate || ''],
       ] },
     });
   } else {
@@ -672,7 +676,7 @@ export async function addDocumentToSheet(
       spreadsheetId: getSpreadsheetId(),
       range: `'${sheetName}'!A${lastDocRow + 1}:D${lastDocRow + 1}`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [[documentName, driveUrl, dateStr, expiryDate || '']] },
+      requestBody: { values: [[`${documentName} (${dateStr})`, driveUrl, dateStr, expiryDate || '']] },
     });
   }
 }
