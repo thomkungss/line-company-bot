@@ -1236,11 +1236,21 @@
               const docs = c.documents || [];
               const docMap = {};
               docs.forEach(d => { docMap[d.name] = d; });
-              const mergedDocs = REQUIRED_DOCS.map(name => docMap[name] || { name, driveFileId: null, updatedDate: null, expiryDate: null });
-              docs.forEach(d => { if (!REQUIRED_DOCS.includes(d.name)) mergedDocs.push(d); });
+              // Match required docs fuzzy (e.g. "หนังสือรับรอง (18/02/2026)" matches "หนังสือรับรอง")
+              function findDoc(name) {
+                if (docMap[name]) return docMap[name];
+                return docs.find(d => d.name.replace(/\s*\(\d{2}\/\d{2}\/\d{4}\)\s*$/, '').trim() === name);
+              }
+              const matchedDocNames = new Set();
+              const mergedDocs = REQUIRED_DOCS.map(name => {
+                const found = findDoc(name);
+                if (found) matchedDocNames.add(found.name);
+                return found || { name, driveFileId: null, updatedDate: null, expiryDate: null };
+              });
+              docs.forEach(d => { if (!matchedDocNames.has(d.name) && !REQUIRED_DOCS.includes(d.name)) mergedDocs.push(d); });
               return mergedDocs.map(d => {
                 const hasFile = !!d.driveFileId;
-                const isInDb = !!docMap[d.name];
+                const isInDb = !!docMap[d.name] || matchedDocNames.has(d.name);
                 const expiryStatus = getExpiryStatus(d.expiryDate);
                 const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
                 return `

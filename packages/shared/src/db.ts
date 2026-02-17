@@ -294,7 +294,7 @@ export async function updateDocumentInSheet(
   if (!doc) return null;
 
   const oldLink = doc.drive_url || '';
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
   const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
 
   // Strip old date from name, then add new date
@@ -330,7 +330,7 @@ export async function addDocumentToSheet(
   const companyId = await getCompanyId(sheetName);
   if (!companyId) throw new Error(`Company "${sheetName}" not found`);
 
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
   const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
   const driveFileId = extractDriveFileId(driveUrl);
 
