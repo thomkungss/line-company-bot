@@ -129,8 +129,8 @@
         // Directors
         if (c.directors && c.directors.length) {
           html += `<div class="section"><h3>กรรมการ (${c.directors.length} คน)</h3><table class="table">
-            <tr><th>#</th><th>ชื่อ</th><th>ตำแหน่ง</th></tr>
-            ${c.directors.map((d, i) => `<tr><td>${i+1}</td><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.position) || '-'}</td></tr>`).join('')}
+            <tr><th>#</th><th>ชื่อ</th></tr>
+            ${c.directors.map((d, i) => `<tr><td>${i+1}</td><td>${escapeHtml(d.name)}</td></tr>`).join('')}
           </table></div>`;
         }
 
