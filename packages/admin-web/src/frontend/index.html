@@ -1171,33 +1171,29 @@
           </div>
         </div>
 
-        <!-- Row 2: Registration + Capital -->
+        <!-- Row 2: Registration, Capital, Authority, Address, Objectives -->
         <div class="card">
           <div class="form-grid">
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="form-group">
               <label>เลขทะเบียนนิติบุคคล</label>
               <input type="text" id="field-registrationNumber" value="${escHtml(c.registrationNumber || '')}">
             </div>
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="form-group">
               <label>ทุนจดทะเบียน</label>
               <input type="text" id="field-capitalText" value="${escHtml(c.capitalText || String(c.registeredCapital || ''))}">
             </div>
-          </div>
-        </div>
-
-        <!-- Row 3: Authority + Address + Objectives -->
-        <div class="card">
-          <div class="form-group">
-            <label>อำนาจกรรมการ</label>
-            <input type="text" id="field-authorizedSignatory" value="${escHtml(c.authorizedSignatory || '')}">
-          </div>
-          <div class="form-group">
-            <label>ที่ตั้งสำนักงานใหญ่</label>
-            <input type="text" id="field-headOfficeAddress" value="${escHtml(c.headOfficeAddress || '')}">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label>วัตถุประสงค์</label>
-            <textarea id="field-objectives" rows="2">${escHtml(c.objectives || '')}</textarea>
+            <div class="form-group full">
+              <label>อำนาจกรรมการ</label>
+              <input type="text" id="field-authorizedSignatory" value="${escHtml(c.authorizedSignatory || '')}">
+            </div>
+            <div class="form-group full">
+              <label>ที่ตั้งสำนักงานใหญ่</label>
+              <input type="text" id="field-headOfficeAddress" value="${escHtml(c.headOfficeAddress || '')}">
+            </div>
+            <div class="form-group full" style="margin-bottom:0;">
+              <label>วัตถุประสงค์</label>
+              <textarea id="field-objectives" rows="2">${escHtml(c.objectives || '')}</textarea>
+            </div>
           </div>
         </div>
 
