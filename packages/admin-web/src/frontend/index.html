@@ -1161,14 +1161,10 @@
     function updateDirectorsBody() {
       const tbody = document.getElementById('directorsBody');
       if (!tbody) return;
-      const isSuperAdmin = currentUserRole === 'super_admin';
       tbody.innerHTML = directorsData.map((d, i) => {
-        const nameCell = isSuperAdmin
-          ? `<input type="text" value="${escHtml(d.name)}" onchange="directorsData[${i}].name=this.value">`
-          : buildNameSelect(allDirectorNames, d.name, `directorsData[${i}].name=this.value`);
         return `<tr>
           <td>${i + 1}</td>
-          <td>${nameCell}</td>
+          <td><input type="text" value="${escHtml(d.name)}" list="directorNamesList" onchange="directorsData[${i}].name=this.value"></td>
           <td><input type="text" value="${escHtml(d.position || '')}" onchange="directorsData[${i}].position=this.value"></td>
           <td><button class="btn btn-sm btn-danger" onclick="removeDirectorRow(${i})">ลบ</button></td>
         </tr>`;
@@ -1201,15 +1197,6 @@
         if (name) directors.push({ name, position: position || undefined });
       });
 
-      // Validate: admin role must use names from the list
-      if (currentUserRole === 'admin' && allDirectorNames.length > 0) {
-        const invalid = directors.filter(d => !allDirectorNames.includes(d.name));
-        if (invalid.length > 0) {
-          toast(`ไม่สามารถใช้ชื่อกรรมการ: ${invalid.map(d => d.name).join(', ')} (ต้องเลือกจากรายชื่อที่มี)`);
-          throw new Error('validation failed');
-        }
-      }
-
       const res = await api('/companies/' + encodeURIComponent(sheet) + '/directors', {
         method: 'PUT',
         body: JSON.stringify({ directors }),
@@ -1236,14 +1223,10 @@
     function updateShareholdersBody() {
       const tbody = document.getElementById('shareholdersBody');
       if (!tbody) return;
-      const isSuperAdmin = currentUserRole === 'super_admin';
       tbody.innerHTML = shareholdersData.map((s, i) => {
-        const nameCell = isSuperAdmin
-          ? `<input type="text" value="${escHtml(s.name)}" onchange="shareholdersData[${i}].name=this.value">`
-          : buildNameSelect(allShareholderNames, s.name, `shareholdersData[${i}].name=this.value`);
         return `<tr>
           <td>${i + 1}</td>
-          <td>${nameCell}</td>
+          <td><input type="text" value="${escHtml(s.name)}" list="shareholderNamesList" onchange="shareholdersData[${i}].name=this.value"></td>
           <td><input type="number" value="${s.shares || ''}" onchange="shareholdersData[${i}].shares=Number(this.value)"></td>
           <td><input type="number" step="0.01" value="${s.percentage || ''}" onchange="shareholdersData[${i}].percentage=Number(this.value)"></td>
           <td><button class="btn btn-sm btn-danger" onclick="removeShareholderRow(${i})">ลบ</button></td>
@@ -1276,15 +1259,6 @@
         const percentage = Number(inputs[2]?.value) || 0;
         if (name) shareholders.push({ order: i + 1, name, shares, percentage: percentage || undefined });
       });
-
-      // Validate: admin role must use names from the list
-      if (currentUserRole === 'admin' && allShareholderNames.length > 0) {
-        const invalid = shareholders.filter(s => !allShareholderNames.includes(s.name));
-        if (invalid.length > 0) {
-          toast(`ไม่สามารถใช้ชื่อผู้ถือหุ้น: ${invalid.map(s => s.name).join(', ')} (ต้องเลือกจากรายชื่อที่มี)`);
-          throw new Error('validation failed');
-        }
-      }
 
       const res = await api('/companies/' + encodeURIComponent(sheet) + '/shareholders', {
         method: 'PUT',
