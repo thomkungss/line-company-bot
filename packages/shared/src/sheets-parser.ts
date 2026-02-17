@@ -681,6 +681,44 @@ export async function addDocumentToSheet(
   }
 }
 
+// ===== Remove document row from sheet =====
+
+export async function removeDocumentFromSheet(
+  sheetName: string,
+  documentName: string,
+): Promise<boolean> {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: getSpreadsheetId(),
+    range: `'${sheetName}'!A:D`,
+  });
+  const rows = res.data.values || [];
+
+  const docSectionIdx = findRowIndex(rows, 'เอกสาร');
+  if (docSectionIdx < 0) return false;
+
+  for (let i = docSectionIdx + 1; i < rows.length; i++) {
+    const nameCell = (rows[i][0] || '').toString().trim();
+    if (nameCell.startsWith('_')) break;
+    const looksLikeHeader = ['ตราประทับ', 'วัตถุ', 'ที่ตั้ง', 'หมายเหตุ', 'ผู้ถือหุ้น', 'กรรมการ', 'อำนาจ', 'ทุน'].some(
+      h => nameCell.includes(h)
+    );
+    if (looksLikeHeader) break;
+
+    if (nameCell === documentName || nameCell.includes(documentName) || documentName.includes(nameCell)) {
+      // Clear the row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: getSpreadsheetId(),
+        range: `'${sheetName}'!A${i + 1}:D${i + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [['', '', '', '']] },
+      });
+      return true;
+    }
+  }
+  return false;
+}
+
 // ===== Update document expiry date =====
 
 export async function updateDocumentExpiry(

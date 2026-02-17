@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet, updateDocumentExpiry } from '@company-bot/shared';
+import { getDriveClient, getDriveFolderId, parseCompanySheet, updateDocumentInSheet, addDocumentToSheet, updateSealInSheet, updateDocumentExpiry, removeDocumentFromSheet } from '@company-bot/shared';
 import { Readable } from 'stream';
 import { config } from '../config';
 
@@ -168,6 +168,22 @@ documentsRouter.put('/:sheet/expiry', async (req: Request, res: Response) => {
       res.json({ success: true, row: result.row });
     } else {
       res.status(404).json({ error: 'Document not found' });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Remove document row from Google Sheet */
+documentsRouter.delete('/:sheet/row/:docName', async (req: Request, res: Response) => {
+  try {
+    const sheet: string = req.params.sheet as string;
+    const docName: string = req.params.docName as string;
+    const removed = await removeDocumentFromSheet(sheet, docName);
+    if (removed) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Document row not found' });
     }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
