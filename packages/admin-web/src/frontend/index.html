@@ -626,10 +626,14 @@
     let companiesData = [];
 
     async function loadDashboard() {
-      companiesData = await api('/companies') || [];
+      const [companies, people] = await Promise.all([
+        api('/companies'),
+        api('/companies/all-people'),
+      ]);
+      companiesData = companies || [];
       document.getElementById('statCompanies').textContent = companiesData.length;
-      document.getElementById('statDirectors').textContent = companiesData.reduce((s, c) => s + (c.directorCount || 0), 0);
-      document.getElementById('statShareholders').textContent = companiesData.reduce((s, c) => s + (c.shareholderCount || 0), 0);
+      document.getElementById('statDirectors').textContent = people?.directors?.length ?? 0;
+      document.getElementById('statShareholders').textContent = people?.shareholders?.length ?? 0;
       document.getElementById('statDocuments').textContent = companiesData.reduce((s, c) => s + (c.documentCount || 0), 0);
 
       document.getElementById('dashTable').innerHTML = companiesData.map(c => `
