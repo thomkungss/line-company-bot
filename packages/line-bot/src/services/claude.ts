@@ -78,7 +78,7 @@ export async function handleAIChat(
 
     // Load accessible company data as context
     const companiesData = await Promise.all(
-      accessibleCompanyNames.slice(0, 5).map(async (name) => {
+      accessibleCompanyNames.map(async (name) => {
         try {
           const company = await parseCompanySheet(name);
           // Collect documents for OCR matching
@@ -172,10 +172,18 @@ export async function handleAIChat(
       messages,
     });
 
-    const assistantMessage = response.content
+    let assistantMessage = response.content
       .filter(block => block.type === 'text')
       .map(block => (block as any).text)
       .join('');
+
+    // Strip markdown that Claude might still use
+    assistantMessage = assistantMessage
+      .replace(/\*\*(.*?)\*\*/g, '$1')   // **bold** → bold
+      .replace(/__(.*?)__/g, '$1')        // __bold__ → bold
+      .replace(/\*(.*?)\*/g, '$1')        // *italic* → italic
+      .replace(/#{1,6}\s+/g, '')          // ## heading → heading
+      .replace(/`([^`]+)`/g, '$1');       // `code` → code
 
     // Log conversation
     const now = thaiNow();
