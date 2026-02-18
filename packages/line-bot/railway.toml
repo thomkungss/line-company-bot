@@ -1,5 +1,6 @@
 [build]
 builder = "NIXPACKS"
+installCommand = "unset NPM_TOKEN && unset NPM_CONFIG_TOKEN && npm i"
 buildCommand = "npm run build:shared && npm run build:bot"
 watchPatterns = ["packages/shared/src/**", "packages/line-bot/src/**", "package.json", "package-lock.json", ".npmrc"]
 
