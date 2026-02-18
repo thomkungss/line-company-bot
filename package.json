@@ -16,6 +16,9 @@
     "dev:admin": "npm run dev -w packages/admin-web",
     "test": "jest --verbose"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "@swc/core": "^1.15.11",
     "@swc/jest": "^0.2.39",
