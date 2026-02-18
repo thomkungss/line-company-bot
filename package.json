@@ -8,12 +8,12 @@
     "packages/admin-web"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "build:shared": "npm run build -w packages/shared",
-    "build:bot": "npm run build -w packages/line-bot",
-    "build:admin": "npm run build -w packages/admin-web",
-    "dev:bot": "npm run dev -w packages/line-bot",
-    "dev:admin": "npm run dev -w packages/admin-web",
+    "build": "npm run build:shared && npm run build:bot && npm run build:admin",
+    "build:shared": "npm run build --prefix packages/shared",
+    "build:bot": "npm run build --prefix packages/line-bot",
+    "build:admin": "npm run build --prefix packages/admin-web",
+    "dev:bot": "npm run dev --prefix packages/line-bot",
+    "dev:admin": "npm run dev --prefix packages/admin-web",
     "test": "jest --verbose"
   },
   "engines": {
