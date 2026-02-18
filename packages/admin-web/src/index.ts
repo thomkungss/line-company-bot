@@ -2,14 +2,18 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import path from 'path';
+import multer from 'multer';
+import { Readable } from 'stream';
 import { config } from './config';
-import { getPermissions } from '@company-bot/shared';
+import { getPermissions, getDriveClient, getDriveFolderId } from '@company-bot/shared';
 import { companiesRouter } from './routes/companies';
 import { documentsRouter } from './routes/documents';
 import { versionsRouter } from './routes/versions';
 import { permissionsRouter } from './routes/permissions';
 import { chatLogsRouter } from './routes/chat-logs';
 import { syncRouter } from './routes/sync';
+
+const reportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const app = express();
 
@@ -179,10 +183,11 @@ app.use('/api/chat-logs', chatLogsRouter);
 app.use('/api/sync', syncRouter);
 
 // Report issue endpoint — sends LINE Flex Message to all super_admins
-app.post('/api/report-issue', async (req, res) => {
+app.post('/api/report-issue', reportUpload.single('image'), async (req, res) => {
   if (!isAuthenticated(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
   try {
-    const { subject, detail } = req.body;
+    const subject = (req.body.subject || '').toString().trim();
+    const detail = (req.body.detail || '').toString().trim();
     if (!subject || !detail) { res.status(400).json({ error: 'subject and detail are required' }); return; }
 
     // Get reporter name
@@ -200,7 +205,70 @@ app.post('/api/report-issue', async (req, res) => {
 
     if (!config.lineChannelAccessToken) { res.status(500).json({ error: 'LINE_CHANNEL_ACCESS_TOKEN not configured' }); return; }
 
+    // Upload image to Google Drive if provided
+    let imageUrl = '';
+    if (req.file) {
+      try {
+        const drive = getDriveClient();
+        const rootFolderId = getDriveFolderId();
+        const driveRes = await drive.files.create({
+          requestBody: {
+            name: `report_${Date.now()}_${req.file.originalname}`,
+            parents: [rootFolderId],
+          },
+          media: {
+            mimeType: req.file.mimetype,
+            body: Readable.from(req.file.buffer),
+          },
+          fields: 'id',
+          supportsAllDrives: true,
+        });
+        const driveFileId = (driveRes as any).data?.id;
+        if (driveFileId) {
+          await drive.permissions.create({
+            fileId: driveFileId,
+            requestBody: { role: 'reader', type: 'anyone' },
+            supportsAllDrives: true,
+          });
+          imageUrl = `https://drive.google.com/uc?id=${driveFileId}`;
+        }
+      } catch (uploadErr: any) {
+        console.error('Report image upload error:', uploadErr.message);
+      }
+    }
+
     const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+
+    // Build Flex body contents
+    const bodyContents: any[] = [
+      { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+        { type: 'text', text: 'ผู้แจ้ง', color: '#9ca3af', size: 'xs' },
+        { type: 'text', text: reporterName, weight: 'bold', size: 'sm', wrap: true },
+      ]},
+      { type: 'separator' },
+      { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+        { type: 'text', text: 'หัวข้อปัญหา', color: '#9ca3af', size: 'xs' },
+        { type: 'text', text: subject, weight: 'bold', size: 'sm', wrap: true },
+      ]},
+      { type: 'separator' },
+      { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+        { type: 'text', text: 'รายละเอียด', color: '#9ca3af', size: 'xs' },
+        { type: 'text', text: detail, size: 'sm', wrap: true },
+      ]},
+    ];
+
+    if (imageUrl) {
+      bodyContents.push({ type: 'separator' });
+      bodyContents.push({
+        type: 'image', url: imageUrl, size: 'full', aspectMode: 'cover', aspectRatio: '20:13',
+      });
+    }
+
+    bodyContents.push({ type: 'separator' });
+    bodyContents.push({ type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+      { type: 'text', text: 'เวลาที่แจ้ง', color: '#9ca3af', size: 'xs' },
+      { type: 'text', text: now, size: 'sm' },
+    ]});
 
     const flexMessage = {
       type: 'flex',
@@ -221,27 +289,7 @@ app.post('/api/report-issue', async (req, res) => {
           layout: 'vertical',
           spacing: 'md',
           paddingAll: '16px',
-          contents: [
-            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
-              { type: 'text', text: 'ผู้แจ้ง', color: '#9ca3af', size: 'xs' },
-              { type: 'text', text: reporterName, weight: 'bold', size: 'sm', wrap: true },
-            ]},
-            { type: 'separator' },
-            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
-              { type: 'text', text: 'หัวข้อปัญหา', color: '#9ca3af', size: 'xs' },
-              { type: 'text', text: subject, weight: 'bold', size: 'sm', wrap: true },
-            ]},
-            { type: 'separator' },
-            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
-              { type: 'text', text: 'รายละเอียด', color: '#9ca3af', size: 'xs' },
-              { type: 'text', text: detail, size: 'sm', wrap: true },
-            ]},
-            { type: 'separator' },
-            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
-              { type: 'text', text: 'เวลาที่แจ้ง', color: '#9ca3af', size: 'xs' },
-              { type: 'text', text: now, size: 'sm' },
-            ]},
-          ],
+          contents: bodyContents,
         },
       },
     };

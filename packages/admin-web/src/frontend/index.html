@@ -481,6 +481,14 @@
             <label>รายละเอียด <span style="color:#dc2626;">*</span></label>
             <textarea id="reportDetail" rows="6" placeholder="อธิบายรายละเอียดของปัญหา" required></textarea>
           </div>
+          <div class="form-group">
+            <label>แนบรูปภาพ <span style="color:#9ca3af;">(ไม่บังคับ)</span></label>
+            <input type="file" id="reportImage" accept="image/*" onchange="previewReportImage(this)" style="margin-bottom:8px;">
+            <div id="reportImagePreview" style="display:none;position:relative;max-width:300px;">
+              <img id="reportImageThumb" style="width:100%;border-radius:8px;border:1px solid #ddd;">
+              <button type="button" onclick="clearReportImage()" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:24px;text-align:center;">&times;</button>
+            </div>
+          </div>
           <div style="display:flex;gap:10px;margin-top:16px;">
             <button class="btn btn-primary" onclick="submitReportIssue()" style="background:#dc2626;">ส่งแจ้งปัญหา</button>
             <button class="btn btn-secondary" onclick="clearReportForm()">ล้างฟอร์ม</button>
@@ -2868,16 +2876,35 @@
     }
 
     // ===== Report Issue =====
+    function previewReportImage(input) {
+      const preview = document.getElementById('reportImagePreview');
+      const thumb = document.getElementById('reportImageThumb');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { thumb.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+    function clearReportImage() {
+      document.getElementById('reportImage').value = '';
+      document.getElementById('reportImagePreview').style.display = 'none';
+    }
     async function submitReportIssue() {
       const subject = document.getElementById('reportSubject').value.trim();
       const detail = document.getElementById('reportDetail').value.trim();
       if (!subject || !detail) { toast('กรุณากรอกข้อมูลให้ครบ'); return; }
       toastLoading('กำลังส่งแจ้งปัญหา...');
       try {
+        const formData = new FormData();
+        formData.append('subject', subject);
+        formData.append('detail', detail);
+        const imageFile = document.getElementById('reportImage').files[0];
+        if (imageFile) formData.append('image', imageFile);
         const res = await fetch('/api/report-issue', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subject, detail }),
+          body: formData,
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -2893,6 +2920,7 @@
     function clearReportForm() {
       document.getElementById('reportSubject').value = '';
       document.getElementById('reportDetail').value = '';
+      clearReportImage();
     }
 
     // ===== Page loader =====
