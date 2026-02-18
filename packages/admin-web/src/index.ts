@@ -230,7 +230,7 @@ app.post('/api/report-issue', reportUpload.single('image'), async (req, res) => 
             requestBody: { role: 'reader', type: 'anyone' },
             supportsAllDrives: true,
           });
-          imageUrl = `https://drive.google.com/uc?id=${driveFileId}`;
+          imageUrl = `https://lh3.googleusercontent.com/d/${driveFileId}`;
         }
       } catch (uploadErr: any) {
         console.error('Report image upload error:', uploadErr.message);
@@ -257,41 +257,42 @@ app.post('/api/report-issue', reportUpload.single('image'), async (req, res) => 
       ]},
     ];
 
-    if (imageUrl) {
-      bodyContents.push({ type: 'separator' });
-      bodyContents.push({
-        type: 'image', url: imageUrl, size: 'full', aspectMode: 'cover', aspectRatio: '20:13',
-      });
-    }
-
     bodyContents.push({ type: 'separator' });
     bodyContents.push({ type: 'box', layout: 'vertical', spacing: 'xs', contents: [
       { type: 'text', text: 'เวลาที่แจ้ง', color: '#9ca3af', size: 'xs' },
       { type: 'text', text: now, size: 'sm' },
     ]});
 
+    const bubble: any = {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#dc2626',
+        paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '⚠️ แจ้งปัญหา', color: '#ffffff', weight: 'bold', size: 'lg' },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        paddingAll: '16px',
+        contents: bodyContents,
+      },
+    };
+
+    if (imageUrl) {
+      bubble.hero = {
+        type: 'image', url: imageUrl, size: 'full', aspectMode: 'cover', aspectRatio: '20:13',
+      };
+    }
+
     const flexMessage = {
       type: 'flex',
       altText: `แจ้งปัญหา: ${subject}`,
-      contents: {
-        type: 'bubble',
-        header: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#dc2626',
-          paddingAll: '16px',
-          contents: [
-            { type: 'text', text: '⚠️ แจ้งปัญหา', color: '#ffffff', weight: 'bold', size: 'lg' },
-          ],
-        },
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          spacing: 'md',
-          paddingAll: '16px',
-          contents: bodyContents,
-        },
-      },
+      contents: bubble,
     };
 
     // Push to each super_admin
