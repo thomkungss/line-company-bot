@@ -1,5 +1,4 @@
 import { getSupabase } from './supabase';
-import { getDriveClient, getDriveFolderId } from './google-auth';
 import {
   Company, Director, Shareholder, CompanyDocument,
   ShareBreakdown, UserPermission, VersionEntry, ChatLogEntry,
@@ -69,6 +68,7 @@ export async function parseCompanySheet(sheetName: string): Promise<Company> {
     driveUrl: d.drive_url || undefined,
     updatedDate: d.updated_date || undefined,
     expiryDate: d.expiry_date || undefined,
+    storagePath: d.storage_path || undefined,
   }));
 
   const shareBreakdown: ShareBreakdown = {
@@ -94,6 +94,8 @@ export async function parseCompanySheet(sheetName: string): Promise<Company> {
     objectives: co.objectives || '',
     sealImageDriveId: co.seal_image_drive_id || '',
     sealImageUrl: co.seal_image_url || '',
+    sealStoragePath: co.seal_storage_path || undefined,
+    sealStorageUrl: co.seal_storage_url || undefined,
     shareholders,
     documents,
   };
@@ -101,7 +103,7 @@ export async function parseCompanySheet(sheetName: string): Promise<Company> {
 
 // ===== Create Company =====
 
-export async function createCompanySheet(sheetName: string): Promise<{ driveFolderId?: string }> {
+export async function createCompanySheet(sheetName: string): Promise<void> {
   const sb = getSupabase();
 
   const now = new Date();
@@ -111,29 +113,6 @@ export async function createCompanySheet(sheetName: string): Promise<{ driveFold
     .from('companies')
     .insert({ sheet_name: sheetName, data_date: dateStr });
   if (error) throw error;
-
-  // Create Drive subfolder (same as sheets-parser.ts)
-  let driveFolderId: string | undefined;
-  try {
-    const drive = getDriveClient();
-    const parentFolderId = getDriveFolderId();
-    if (parentFolderId) {
-      const folderRes = await drive.files.create({
-        requestBody: {
-          name: sheetName,
-          mimeType: 'application/vnd.google-apps.folder',
-          parents: [parentFolderId],
-        },
-        fields: 'id',
-        supportsAllDrives: true,
-      });
-      driveFolderId = (folderRes as any).data.id;
-    }
-  } catch {
-    // Drive folder creation is optional
-  }
-
-  return { driveFolderId };
 }
 
 // ===== Delete Company (CASCADE deletes directors, shareholders, documents, access) =====
@@ -275,7 +254,8 @@ export async function updateDocumentInSheet(
   documentName: string,
   newDriveUrl: string,
   expiryDate?: string,
-): Promise<{ row: number; oldLink: string } | null> {
+  storagePath?: string,
+): Promise<{ row: number; oldLink: string; oldStoragePath?: string } | null> {
   const sb = getSupabase();
   const companyId = await getCompanyId(sheetName);
   if (!companyId) return null;
@@ -294,6 +274,7 @@ export async function updateDocumentInSheet(
   if (!doc) return null;
 
   const oldLink = doc.drive_url || '';
+  const oldStoragePath = doc.storage_path || undefined;
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
   const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
 
@@ -303,19 +284,24 @@ export async function updateDocumentInSheet(
 
   const driveFileId = extractDriveFileId(newDriveUrl);
 
+  const updates: Record<string, any> = {
+    name: nameWithDate,
+    drive_url: newDriveUrl,
+    drive_file_id: driveFileId,
+    updated_date: dateStr,
+    expiry_date: expiryDate ?? doc.expiry_date ?? '',
+  };
+  if (storagePath !== undefined) {
+    updates.storage_path = storagePath;
+  }
+
   const { error } = await sb
     .from('company_documents')
-    .update({
-      name: nameWithDate,
-      drive_url: newDriveUrl,
-      drive_file_id: driveFileId,
-      updated_date: dateStr,
-      expiry_date: expiryDate ?? doc.expiry_date ?? '',
-    })
+    .update(updates)
     .eq('id', doc.id);
   if (error) throw error;
 
-  return { row: doc.id, oldLink };
+  return { row: doc.id, oldLink, oldStoragePath };
 }
 
 // ===== Add Document =====
@@ -325,6 +311,7 @@ export async function addDocumentToSheet(
   documentName: string,
   driveUrl: string,
   expiryDate?: string,
+  storagePath?: string,
 ): Promise<void> {
   const sb = getSupabase();
   const companyId = await getCompanyId(sheetName);
@@ -341,6 +328,7 @@ export async function addDocumentToSheet(
     drive_url: driveUrl,
     updated_date: dateStr,
     expiry_date: expiryDate || '',
+    storage_path: storagePath || '',
   });
   if (error) throw error;
 }
@@ -404,19 +392,32 @@ export async function updateDocumentExpiry(
 
 // ===== Update Seal Image =====
 
-export async function updateSealInSheet(sheetName: string, urlOrId: string): Promise<boolean> {
+export async function updateSealInSheet(
+  sheetName: string,
+  urlOrId: string,
+  storagePath?: string,
+  storageUrl?: string,
+): Promise<boolean> {
   const sb = getSupabase();
 
-  const isExternalUrl = urlOrId.startsWith('http') && !urlOrId.includes('drive.google.com');
   const updates: Record<string, string> = {};
 
-  if (isExternalUrl) {
-    updates.seal_image_url = urlOrId;
+  if (storagePath && storageUrl) {
+    // Supabase Storage seal
+    updates.seal_storage_path = storagePath;
+    updates.seal_storage_url = storageUrl;
     updates.seal_image_drive_id = '';
-  } else {
-    const driveId = extractDriveFileId(urlOrId) || urlOrId;
-    updates.seal_image_drive_id = driveId;
     updates.seal_image_url = '';
+  } else {
+    const isExternalUrl = urlOrId.startsWith('http') && !urlOrId.includes('drive.google.com');
+    if (isExternalUrl) {
+      updates.seal_image_url = urlOrId;
+      updates.seal_image_drive_id = '';
+    } else {
+      const driveId = extractDriveFileId(urlOrId) || urlOrId;
+      updates.seal_image_drive_id = driveId;
+      updates.seal_image_url = '';
+    }
   }
 
   const { error } = await sb

@@ -56,7 +56,7 @@ companiesRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await createCompanySheet(trimmed);
+    await createCompanySheet(trimmed);
 
     await appendVersion({
       timestamp: thaiNow(),
@@ -70,7 +70,7 @@ companiesRouter.post('/', async (req: Request, res: Response) => {
     // Auto-update permissions sheet to include new company column
     try { const perms = await getPermissions(); await updatePermissions(perms); } catch {}
 
-    res.json({ success: true, sheetName: trimmed, driveFolderId: result.driveFolderId });
+    res.json({ success: true, sheetName: trimmed });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -26,6 +26,7 @@ export interface CompanyDocument {
   driveUrl?: string;
   updatedDate?: string; // วัน update ล่าสุด
   expiryDate?: string; // วันหมดอายุ
+  storagePath?: string; // Supabase Storage path (e.g. "companyName/doc_01-01-2026.pdf")
 }
 
 export interface Company {
@@ -44,6 +45,8 @@ export interface Company {
   objectives: string;
   sealImageDriveId: string;
   sealImageUrl: string; // full URL (for non-Drive hosted images)
+  sealStoragePath?: string; // Supabase Storage path for seal
+  sealStorageUrl?: string; // Supabase Storage public URL for seal
   shareholders: Shareholder[];
   documents: CompanyDocument[];
 }

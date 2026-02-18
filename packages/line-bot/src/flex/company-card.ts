@@ -183,9 +183,12 @@ export function buildCompanySelectionCarousel(companies: Company[], opts: CardOp
 
 /** Build detailed company Flex Message */
 export function buildCompanyDetailFlex(company: Company, opts: CardOptions = {}): FlexMessage {
-  const sealUrl = company.sealImageDriveId
-    ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
-    : company.sealImageUrl || undefined;
+  // Seal URL: prefer Supabase Storage public URL, fallback to Drive proxy
+  const sealUrl = company.sealStorageUrl
+    ? company.sealStorageUrl
+    : company.sealImageDriveId
+      ? `${config.baseUrl}/api/seal/${company.sealImageDriveId}`
+      : company.sealImageUrl || undefined;
 
   const bodyContents: any[] = [
     // Registration number

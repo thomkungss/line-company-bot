@@ -100,14 +100,15 @@ export function buildDocumentList(company: Company, options: DocListOptions = {}
       });
     }
 
-    // Action buttons row
-    const hasDriveFile = doc.driveFileId && !doc.driveFileId.startsWith('http');
+    // Action buttons row — prefer storagePath, fallback to driveFileId
+    const viewableFileId = doc.storagePath || (doc.driveFileId && !doc.driveFileId.startsWith('http') ? doc.driveFileId : '');
+    const hasViewableFile = !!viewableFileId;
     const actionButtons: any[] = [];
 
     const liffBase = `https://liff.line.me/${config.liffId}`;
-    if (hasDriveFile) {
+    if (hasViewableFile) {
       const encodedName = encodeURIComponent(doc.name);
-      const encodedFileId = encodeURIComponent(doc.driveFileId!);
+      const encodedFileId = encodeURIComponent(viewableFileId);
       actionButtons.push({
         type: 'button',
         action: { type: 'uri', label: 'ดู PDF', uri: `${liffBase}/doc-viewer.html?fileId=${encodedFileId}&name=${encodedName}` },

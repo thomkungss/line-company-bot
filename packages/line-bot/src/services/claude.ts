@@ -40,7 +40,7 @@ const SYSTEM_PROMPT = `คุณคือ "เลขาบริษัท AI" �
 
 interface DocRef {
   name: string;
-  driveFileId: string;
+  fileId: string; // storagePath or driveFileId
   companyName: string;
 }
 
@@ -81,12 +81,13 @@ export async function handleAIChat(
       accessibleCompanyNames.map(async (name) => {
         try {
           const company = await parseCompanySheet(name);
-          // Collect documents for OCR matching
+          // Collect documents for OCR matching — prefer storagePath, fallback to driveFileId
           for (const d of company.documents) {
-            if (d.driveFileId) {
+            const fid = d.storagePath || d.driveFileId;
+            if (fid) {
               allDocuments.push({
                 name: d.name,
-                driveFileId: d.driveFileId,
+                fileId: fid,
                 companyName: company.companyNameTh || name,
               });
             }
@@ -107,7 +108,7 @@ export async function handleAIChat(
 
     for (const doc of referencedDocs) {
       try {
-        const { buffer, mimeType } = await fetchAndCache(doc.driveFileId);
+        const { buffer, mimeType } = await fetchAndCache(doc.fileId);
 
         if (mimeType === 'application/pdf') {
           if (buffer.length > 10 * 1024 * 1024) {

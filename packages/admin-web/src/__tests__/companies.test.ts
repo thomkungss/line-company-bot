@@ -110,7 +110,7 @@ describe('GET /api/companies', () => {
 describe('POST /api/companies', () => {
     test('creates company successfully', async () => {
         mockListCompanySheets.mockResolvedValue([]);
-        mockCreateCompanySheet.mockResolvedValue({ driveFolderId: 'folder123' });
+        mockCreateCompanySheet.mockResolvedValue(undefined);
         mockAppendVersion.mockResolvedValue(undefined);
 
         const res = await request(app)
@@ -154,7 +154,7 @@ describe('POST /api/companies', () => {
 
     test('trims whitespace from sheetName', async () => {
         mockListCompanySheets.mockResolvedValue([]);
-        mockCreateCompanySheet.mockResolvedValue({});
+        mockCreateCompanySheet.mockResolvedValue(undefined);
         mockAppendVersion.mockResolvedValue(undefined);
 
         const res = await request(app)

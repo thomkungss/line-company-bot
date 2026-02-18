@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS companies (
   objectives TEXT NOT NULL DEFAULT '',
   seal_image_drive_id TEXT NOT NULL DEFAULT '',
   seal_image_url TEXT NOT NULL DEFAULT '',
+  seal_storage_path TEXT NOT NULL DEFAULT '',
+  seal_storage_url TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -58,7 +60,8 @@ CREATE TABLE IF NOT EXISTS company_documents (
   type TEXT,
   drive_url TEXT,
   updated_date TEXT,
-  expiry_date TEXT
+  expiry_date TEXT,
+  storage_path TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_documents_company ON company_documents(company_id);
