@@ -1,7 +1,7 @@
 [build]
 builder = "NIXPACKS"
 installCommand = "unset NPM_TOKEN && unset NPM_CONFIG_TOKEN && npm i"
-buildCommand = "npm run build:shared && npm run build:admin"
+buildCommand = "npm run build --prefix packages/shared && npm run build --prefix packages/admin-web"
 watchPatterns = ["packages/shared/src/**", "packages/admin-web/src/**", "package.json", "package-lock.json", ".npmrc"]
 
 [deploy]
