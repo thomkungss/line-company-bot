@@ -76,7 +76,7 @@ export async function handleAIChat(
     // Collect all documents across companies
     const allDocuments: DocRef[] = [];
 
-    // Load accessible company data as context
+    // Load accessible company data as context (compact format to reduce tokens)
     const companiesData = await Promise.all(
       accessibleCompanyNames.map(async (name) => {
         try {
@@ -91,16 +91,12 @@ export async function handleAIChat(
               });
             }
           }
-          return `--- บริษัท: ${company.companyNameTh} (${company.companyNameEn}) ---
-เลขทะเบียน: ${company.registrationNumber}
-กรรมการ: ${company.directors.map(d => d.name).join(', ')}
-อำนาจกรรมการ: ${company.authorizedSignatory}
-ทุนจดทะเบียน: ${company.capitalText || company.registeredCapital}
-ผู้ถือหุ้น: ${company.shareholders.map(s => `${s.name} (${s.shares} หุ้น)`).join(', ')}
-ที่อยู่: ${company.headOfficeAddress}
-เอกสาร: ${company.documents.map(d => d.name).join(', ')}`;
+          const directors = company.directors.map(d => d.name).join(', ');
+          const shareholders = company.shareholders.map(s => `${s.name}(${s.shares})`).join(', ');
+          const docs = company.documents.map(d => d.name).join(', ');
+          return `[${company.companyNameTh}] ทะเบียน:${company.registrationNumber} | กรรมการ:${directors} | อำนาจ:${company.authorizedSignatory} | ทุน:${company.capitalText || company.registeredCapital} | ผู้ถือหุ้น:${shareholders} | เอกสาร:${docs}`;
         } catch {
-          return `--- บริษัท: ${name} --- (ไม่สามารถโหลดข้อมูลได้)`;
+          return `[${name}] (โหลดไม่ได้)`;
         }
       })
     );
