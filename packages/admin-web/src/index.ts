@@ -178,6 +178,98 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/chat-logs', chatLogsRouter);
 app.use('/api/sync', syncRouter);
 
+// Report issue endpoint — sends LINE Flex Message to all super_admins
+app.post('/api/report-issue', async (req, res) => {
+  if (!isAuthenticated(req)) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  try {
+    const { subject, detail } = req.body;
+    if (!subject || !detail) { res.status(400).json({ error: 'subject and detail are required' }); return; }
+
+    // Get reporter name
+    const lineUserId = req.signedCookies?.admin_user;
+    let reporterName = 'ไม่ทราบ';
+    const permissions = await getPermissions();
+    if (lineUserId) {
+      const user = permissions.find(p => p.lineUserId === lineUserId);
+      if (user) reporterName = user.displayName;
+    }
+
+    // Get super_admin users
+    const superAdmins = permissions.filter(p => p.role === 'super_admin');
+    if (superAdmins.length === 0) { res.status(400).json({ error: 'ไม่พบ super_admin ในระบบ' }); return; }
+
+    if (!config.lineChannelAccessToken) { res.status(500).json({ error: 'LINE_CHANNEL_ACCESS_TOKEN not configured' }); return; }
+
+    const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+
+    const flexMessage = {
+      type: 'flex',
+      altText: `แจ้งปัญหา: ${subject}`,
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#dc2626',
+          paddingAll: '16px',
+          contents: [
+            { type: 'text', text: '⚠️ แจ้งปัญหา', color: '#ffffff', weight: 'bold', size: 'lg' },
+          ],
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'md',
+          paddingAll: '16px',
+          contents: [
+            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+              { type: 'text', text: 'ผู้แจ้ง', color: '#9ca3af', size: 'xs' },
+              { type: 'text', text: reporterName, weight: 'bold', size: 'sm', wrap: true },
+            ]},
+            { type: 'separator' },
+            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+              { type: 'text', text: 'หัวข้อปัญหา', color: '#9ca3af', size: 'xs' },
+              { type: 'text', text: subject, weight: 'bold', size: 'sm', wrap: true },
+            ]},
+            { type: 'separator' },
+            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+              { type: 'text', text: 'รายละเอียด', color: '#9ca3af', size: 'xs' },
+              { type: 'text', text: detail, size: 'sm', wrap: true },
+            ]},
+            { type: 'separator' },
+            { type: 'box', layout: 'vertical', spacing: 'xs', contents: [
+              { type: 'text', text: 'เวลาที่แจ้ง', color: '#9ca3af', size: 'xs' },
+              { type: 'text', text: now, size: 'sm' },
+            ]},
+          ],
+        },
+      },
+    };
+
+    // Push to each super_admin
+    const results = await Promise.allSettled(
+      superAdmins.map(admin =>
+        fetch('https://api.line.me/v2/bot/message/push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${config.lineChannelAccessToken}`,
+          },
+          body: JSON.stringify({
+            to: admin.lineUserId,
+            messages: [flexMessage],
+          }),
+        })
+      )
+    );
+
+    const sent = results.filter(r => r.status === 'fulfilled' && (r.value as Response).ok).length;
+    res.json({ success: true, sent, total: superAdmins.length });
+  } catch (err: any) {
+    console.error('report-issue error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Frontend pages
 app.use(express.static(path.join(__dirname, 'frontend')));
