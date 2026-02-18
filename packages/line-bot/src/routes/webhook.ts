@@ -12,10 +12,13 @@ const client = new Client({
 
 export async function handleWebhook(req: Request, res: Response): Promise<void> {
   const events: WebhookEvent[] = (req.body as any).events || [];
+  console.log(`Webhook received ${events.length} events`);
 
   await Promise.allSettled(
     events.map(async (event) => {
       try {
+        const eventType = event.type === 'message' ? `message:${event.message.type}` : event.type;
+        console.log(`Processing event: ${eventType}`);
         if (event.type === 'message' && event.message.type === 'text') {
           await handleMessage(client, event);
         } else if (event.type === 'message' && event.message.type === 'audio') {
