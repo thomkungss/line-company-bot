@@ -177,24 +177,38 @@ documentsRouter.delete('/:fileId', async (req: Request, res: Response) => {
   }
 });
 
-/** Proxy download from Google Drive (for existing Drive files) */
-documentsRouter.get('/download/:fileId', async (req: Request, res: Response) => {
+/** Proxy download — auto-routes to Supabase Storage or Google Drive */
+documentsRouter.get('/download/:fileId(*)', async (req: Request, res: Response) => {
   try {
-    const drive = getDriveClient();
     const fileId: string = req.params.fileId as string;
 
-    const meta = await drive.files.get({ fileId, fields: 'mimeType,name', supportsAllDrives: true });
-    const mimeType = (meta as any).data?.mimeType || 'application/octet-stream';
-    const fileName = (meta as any).data?.name || 'document';
-
-    const fileRes = await drive.files.get(
-      { fileId, alt: 'media', supportsAllDrives: true },
-      { responseType: 'stream' }
-    );
-
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
-    ((fileRes as any).data as Readable).pipe(res);
+    if (fileId.includes('/')) {
+      // Supabase Storage path
+      const { downloadFromStorage } = require('@company-bot/shared');
+      const buffer = await downloadFromStorage('documents', fileId);
+      const fileName = fileId.split('/').pop() || 'document';
+      const ext = fileName.split('.').pop()?.toLowerCase() || '';
+      const mimeMap: Record<string, string> = {
+        pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+        png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+      };
+      res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+      res.end(buffer);
+    } else {
+      // Legacy: Google Drive
+      const drive = getDriveClient();
+      const meta = await drive.files.get({ fileId, fields: 'mimeType,name', supportsAllDrives: true });
+      const mimeType = (meta as any).data?.mimeType || 'application/octet-stream';
+      const fileName = (meta as any).data?.name || 'document';
+      const fileRes = await drive.files.get(
+        { fileId, alt: 'media', supportsAllDrives: true },
+        { responseType: 'stream' }
+      );
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+      ((fileRes as any).data as Readable).pipe(res);
+    }
   } catch (err: any) {
     res.status(404).json({ error: 'File not found' });
   }

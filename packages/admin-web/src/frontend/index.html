@@ -885,7 +885,7 @@
           <td><strong>${escHtml(d.name)}</strong></td>
           <td>${escHtml(d.company)}</td>
           <td>${escHtml(d.expiryDate || '-')}</td>
-          <td>${d.driveFileId ? '<a href="/api/documents/download/' + d.driveFileId + '" target="_blank" class="btn btn-sm btn-secondary">Download</a>' : ''}</td>
+          <td>${(d.storagePath || d.driveFileId) ? '<a href="/api/documents/download/' + encodeURIComponent(d.storagePath || d.driveFileId) + '" target="_blank" class="btn btn-sm btn-secondary">Download</a>' : ''}</td>
         </tr>`).join('');
       }
     }
@@ -995,8 +995,9 @@
         html += `<div class="view-section"><h3>เอกสาร (${c.documents.length} รายการ)</h3>`;
         c.documents.forEach(d => {
           let actions = '';
-          if (d.driveFileId) {
-            actions = `<a href="/api/documents/download/${escHtml(d.driveFileId)}" target="_blank">ดาวน์โหลด</a>`;
+          const fileRef = d.storagePath || d.driveFileId;
+          if (fileRef) {
+            actions = `<a href="/api/documents/download/${encodeURIComponent(fileRef)}" target="_blank">ดาวน์โหลด</a>`;
           } else if (d.driveUrl) {
             actions = `<a href="${escHtml(d.driveUrl)}" target="_blank">เปิด</a>`;
           }
@@ -1368,18 +1369,19 @@
               const mergedDocs = REQUIRED_DOCS.map(name => {
                 const found = findDoc(name);
                 if (found) matchedDocNames.add(found.name);
-                return found || { name, driveFileId: null, updatedDate: null, expiryDate: null };
+                return found || { name, driveFileId: null, storagePath: null, updatedDate: null, expiryDate: null };
               });
               docs.forEach(d => { if (!matchedDocNames.has(d.name) && !REQUIRED_DOCS.includes(d.name)) mergedDocs.push(d); });
               return mergedDocs.map(d => {
-                const hasFile = !!d.driveFileId;
+                const fileRef = d.storagePath || d.driveFileId;
+                const hasFile = !!fileRef;
                 const isInDb = !!docMap[d.name] || matchedDocNames.has(d.name);
                 const expiryStatus = getExpiryStatus(d.expiryDate);
                 const expiryBadge = expiryStatus ? getExpiryBadgeHtml(expiryStatus) : '';
                 return `
-                <div class="doc-box ${hasFile ? 'doc-uploaded' : 'doc-missing'}" ${hasFile ? `onclick="window.open('/api/documents/download/${escHtml(d.driveFileId)}','_blank')" style="cursor:pointer;"` : ''}>
+                <div class="doc-box ${hasFile ? 'doc-uploaded' : 'doc-missing'}" ${hasFile ? `onclick="window.open('/api/documents/download/${encodeURIComponent(fileRef)}','_blank')" style="cursor:pointer;"` : ''}>
                   <div class="doc-box-actions" onclick="event.stopPropagation()">
-                    ${(hasFile || isInDb) ? `<button class="doc-box-btn delete" onclick="deleteDoc('${escHtml(d.driveFileId || '')}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
+                    ${(hasFile || isInDb) ? `<button class="doc-box-btn delete" onclick="deleteDoc('${escHtml(fileRef || '')}','${escHtml(d.storagePath || '')}','${escHtml(sheet)}','${escHtml(d.name)}')" title="ลบ"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
                   </div>
                   <div class="doc-box-icon ${hasFile ? 'uploaded' : 'missing'}">
                     ${hasFile
@@ -1734,17 +1736,19 @@
     }
 
     let deleteDocCtx = {};
-    function deleteDoc(fileId, sheet, docName) {
-      deleteDocCtx = { fileId, sheet, docName };
+    function deleteDoc(fileId, storagePath, sheet, docName) {
+      deleteDocCtx = { fileId, storagePath, sheet, docName };
       document.getElementById('deleteDocName').textContent = docName;
       document.getElementById('deleteDocModal').classList.add('show');
     }
     document.getElementById('confirmDeleteDocBtn').addEventListener('click', async () => {
-      const { fileId, sheet, docName } = deleteDocCtx;
+      const { fileId, storagePath, sheet, docName } = deleteDocCtx;
       if (!docName) return;
       closeAllModals();
       toast('กำลังลบเอกสาร...');
-      if (fileId) {
+      if (storagePath) {
+        try { await api('/documents/_storage?storagePath=' + encodeURIComponent(storagePath), { method: 'DELETE' }); } catch {}
+      } else if (fileId) {
         try { await api('/documents/' + fileId, { method: 'DELETE' }); } catch {}
       }
       const res = await api('/documents/' + encodeURIComponent(sheet) + '/row/' + encodeURIComponent(docName), { method: 'DELETE' });
