@@ -15,7 +15,7 @@ function getCached(fileId: string) {
   return null;
 }
 
-async function fetchAndCache(fileId: string): Promise<{ buffer: Buffer; mimeType: string; fileName: string }> {
+export async function fetchAndCache(fileId: string): Promise<{ buffer: Buffer; mimeType: string; fileName: string }> {
   const cached = getCached(fileId);
   if (cached) return cached;
 
