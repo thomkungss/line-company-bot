@@ -9,7 +9,7 @@
     "dev": "tsc --watch & nodemon dist/index.js"
   },
   "dependencies": {
-    "@company-bot/shared": "*",
+    "@company-bot/shared": "file:../shared",
     "cookie-parser": "^1.4.7",
     "express": "^4.21.0",
     "express-session": "^1.18.0",

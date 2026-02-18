@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.76.0",
-    "@company-bot/shared": "*",
+    "@company-bot/shared": "file:../shared",
     "@line/bot-sdk": "^9.6.0",
     "express": "^4.21.0",
     "googleapis": "^140.0.0",
