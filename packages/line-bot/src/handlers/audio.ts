@@ -99,10 +99,16 @@ export async function handleAudioMessage(client: Client, event: MessageEvent): P
     const aiResponse = await handleAIChat(userId, transcribedText, accessibleCompanies);
 
     // Push result back to user
-    await client.pushMessage(userId, {
-      type: 'text',
-      text: `📝 "${transcribedText}"\n\n${aiResponse}`,
-    });
+    await client.pushMessage(userId, [
+      {
+        type: 'text',
+        text: `🗣️ "${transcribedText}"`,
+      },
+      {
+        type: 'text',
+        text: aiResponse,
+      },
+    ]);
   } catch (err: any) {
     console.error('Audio handler error:', err.message);
     await client.pushMessage(userId, {
