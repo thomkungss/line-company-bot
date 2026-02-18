@@ -646,6 +646,7 @@
 
     // ===== User Role =====
     let currentUserRole = 'admin'; // default
+    let currentLineUserId = '';
     let allDirectorNames = [];
     let allShareholderNames = [];
 
@@ -654,6 +655,7 @@
         const me = await fetch('/api/me').then(r => r.json());
         if (me.selected) {
           currentUserRole = me.role;
+          currentLineUserId = me.lineUserId || '';
           showSidebarUser(me.displayName, me.role);
           await loadAllPeople();
           return;
@@ -688,6 +690,7 @@
         body: JSON.stringify({ lineUserId }),
       });
       currentUserRole = role;
+      currentLineUserId = lineUserId || '';
       showSidebarUser(displayName, role);
       document.getElementById('userSelectModal').classList.remove('show');
       await loadAllPeople();
@@ -775,7 +778,7 @@
         api('/companies'),
         api('/companies/all-people'),
       ]);
-      companiesData = companies || [];
+      companiesData = applySavedOrder(companies || []);
       peopleData = people || {};
       document.getElementById('statCompanies').textContent = companiesData.length;
       document.getElementById('statDirectors').textContent = people?.directors?.length ?? 0;
@@ -1069,8 +1072,8 @@
     async function loadCompanies() {
       if (!companiesData.length) {
         companiesData = await api('/companies') || [];
-        companiesData = applySavedOrder(companiesData);
       }
+      companiesData = applySavedOrder(companiesData);
       renderCompanyList();
       document.getElementById('companyDetail').style.display = 'none';
     }
@@ -1080,11 +1083,14 @@
     }
 
     // ===== Drag-and-Drop Reordering =====
+    function getOrderKey() {
+      return currentLineUserId ? 'companyOrder_' + currentLineUserId : 'companyOrder';
+    }
     function getSavedCompanyOrder() {
-      try { return JSON.parse(localStorage.getItem('companyOrder')) || []; } catch(e) { return []; }
+      try { return JSON.parse(localStorage.getItem(getOrderKey())) || []; } catch(e) { return []; }
     }
     function saveCompanyOrder(orderedSheetNames) {
-      localStorage.setItem('companyOrder', JSON.stringify(orderedSheetNames));
+      localStorage.setItem(getOrderKey(), JSON.stringify(orderedSheetNames));
     }
     function applySavedOrder(arr) {
       var order = getSavedCompanyOrder();
@@ -1205,10 +1211,10 @@
                 '<div>' +
                   '<strong>' + escHtml(c.companyNameTh || c.sheetName) + '</strong>' +
                   '<span style="color:#999;font-size:0.85em;margin-left:8px;">' + escHtml(c.companyNameEn || '') + '</span>' +
+                  (c.registrationNumber ? '<span class="badge badge-green" style="margin-left:8px;">' + escHtml(c.registrationNumber) + '</span>' : '') +
                 '</div>' +
               '</div>' +
               '<div style="display:flex;gap:8px;align-items:center;">' +
-                '<span class="badge badge-green">' + escHtml(c.registrationNumber || '-') + '</span>' +
                 '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();openDeleteCompany(\'' + escHtml(c.sheetName) + '\')">ลบ</button>' +
               '</div>' +
             '</div>' +
