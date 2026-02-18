@@ -3,6 +3,7 @@ import { WebhookEvent, Client } from '@line/bot-sdk';
 import { config } from '../config';
 import { handleMessage } from '../handlers/message';
 import { handlePostback } from '../handlers/postback';
+import { handleAudioMessage } from '../handlers/audio';
 
 const client = new Client({
   channelAccessToken: config.lineChannelAccessToken,
@@ -17,6 +18,8 @@ export async function handleWebhook(req: Request, res: Response): Promise<void> 
       try {
         if (event.type === 'message' && event.message.type === 'text') {
           await handleMessage(client, event);
+        } else if (event.type === 'message' && event.message.type === 'audio') {
+          await handleAudioMessage(client, event);
         } else if (event.type === 'postback') {
           await handlePostback(client, event);
         }
