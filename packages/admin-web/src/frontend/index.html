@@ -11,12 +11,13 @@
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1f2937; }
 
     /* Sidebar */
-    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: #ffffff; border-right: 1px solid #ebebeb; padding: 24px 0; overflow-y: auto; z-index: 50; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: #ffffff; border-right: 1px solid #ebebeb; padding: 24px 0; overflow-y: auto; z-index: 50; display: flex; flex-direction: column; }
     .sidebar .logo { padding: 0 24px 24px; border-bottom: 1px solid #f0f0f0; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
     .sidebar .logo img { height: 44px; width: auto; }
     .sidebar .logo p { color: #9ca3af; font-size: 0.72em; margin-top: 2px; }
     .stat-card.clickable:hover { border-color: #93c5fd; background: #f8faff; }
-    .sidebar nav { padding: 8px 12px; }
+    .sidebar nav { padding: 8px 12px; flex: 1; }
+    .sidebar .nav-bottom { padding: 8px 12px; border-top: 1px solid #f0f0f0; }
     .sidebar nav a { display: flex; align-items: center; padding: 10px 16px; color: #71717a; text-decoration: none; font-size: 0.88em; font-weight: 450; transition: all 0.15s; border-radius: 8px; margin-bottom: 2px; }
     .sidebar nav a:hover { background: #f4f4f5; color: #3f3f46; }
     .sidebar nav a.active { background: #f1f5f9; color: #334155; font-weight: 600; }
@@ -309,10 +310,12 @@
     .vt-item .vt-old { color: #ef4444; font-size: 0.8em; }
     .vt-item .vt-new { color: #2563eb; font-size: 0.8em; }
     .vt-item .vt-by { font-size: 0.75em; color: #9ca3af; margin-top: 2px; }
-    /* Report issue nav */
-    .sidebar nav a.nav-report-issue { background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; margin-top: 12px; }
-    .sidebar nav a.nav-report-issue:hover { background: linear-gradient(135deg, #b91c1c, #991b1b); color: white; }
-    .sidebar nav a.nav-report-issue.active { background: linear-gradient(135deg, #b91c1c, #991b1b); color: white; }
+    /* Report issue nav (pinned bottom) */
+    .sidebar .nav-bottom a.nav-report-issue { display: flex; align-items: center; padding: 10px 16px; text-decoration: none; font-size: 0.88em; font-weight: 450; border-radius: 8px; background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .sidebar .nav-bottom a.nav-report-issue .icon { margin-right: 10px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sidebar .nav-bottom a.nav-report-issue .icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .sidebar .nav-bottom a.nav-report-issue:hover { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+    .sidebar .nav-bottom a.nav-report-issue.active { background: #ffedd5; color: #9a3412; border-color: #fb923c; font-weight: 600; }
     .report-form-container { max-width: 600px; }
   </style>
 </head>
@@ -335,9 +338,11 @@
       <a href="#" data-page="permissions"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 015 5v3H7V7a5 5 0 015-5z"/><rect x="4" y="10" width="16" height="11" rx="2"/><circle cx="12" cy="16" r="1.5"/></svg></span> จัดการสิทธิ์</a>
       <a href="#" data-page="chatlog"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"/></svg></span> Chat Log</a>
       <a href="#" data-page="mapping"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><path d="M12 8v3M7.5 17.5L10 13M16.5 17.5L14 13"/></svg></span> Mapping</a>
-      <a href="#" data-page="report-issue" class="nav-report-issue"><span class="icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> แจ้งปัญหา</a>
       <a href="#" id="logoutBtn"><span class="icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> ออกจากระบบ</a>
     </nav>
+    <div class="nav-bottom">
+      <a href="#" data-page="report-issue" class="nav-report-issue"><span class="icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> แจ้งปัญหา</a>
+    </div>
   </div>
 
   <div class="main">
@@ -490,7 +495,7 @@
             </div>
           </div>
           <div style="display:flex;gap:10px;margin-top:16px;">
-            <button class="btn btn-primary" onclick="submitReportIssue()" style="background:#dc2626;">ส่งแจ้งปัญหา</button>
+            <button class="btn btn-primary" onclick="submitReportIssue()" style="background:#ea580c;">ส่งแจ้งปัญหา</button>
             <button class="btn btn-secondary" onclick="clearReportForm()">ล้างฟอร์ม</button>
           </div>
         </div>
